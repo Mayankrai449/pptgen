@@ -1,13 +1,12 @@
 import json
 import base64
 from pptx import Presentation
-from pptx.util import Emu, Pt, Inches
+from pptx.util import Pt
 from pptx.dml.color import RGBColor
 from pptx.enum.shapes import MSO_SHAPE
-from pptx.enum.text import PP_ALIGN
+from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
 from pptx.enum.dml import MSO_LINE
 import requests
-from io import BytesIO
 from PIL import Image
 import os
 import re
@@ -21,6 +20,18 @@ def safe_int_conversion(value, default=0):
             if numeric_part:
                 return int(float(numeric_part.group()))
         return int(float(value))
+    except (ValueError, TypeError):
+        return default
+
+def safe_float_conversion(value, default=0.0):
+    if value is None or value == 'auto' or value == 'normal':
+        return default
+    try:
+        if isinstance(value, str):
+            numeric_part = re.search(r'[\d.]+', value)
+            if numeric_part:
+                return float(numeric_part.group())
+        return float(value)
     except (ValueError, TypeError):
         return default
 
@@ -87,76 +98,73 @@ def parse_border_radius(radius_str):
         match = re.search(r'[\d.]+', radius_str)
         if match:
             radius = float(match.group())
-            return min(radius / 100, 1.0)
+            return min(radius / 20, 1.0)
     except (ValueError, TypeError):
         return 0
     return 0
 
-def pixels_to_pt(pixels):
-    return pixels * 0.75
+def pixels_to_emu(pixels):
+    return int(pixels * 9525)
 
-def scale_coordinates(x, y, width, height, source_width, source_height, target_width, target_height):
-    if source_width <= 0 or source_height <= 0:
-        return x, y, width, height
-    
-    scale_x = target_width / source_width
-    scale_y = target_height / source_height
-    
-    return (
-        int(x * scale_x),
-        int(y * scale_y),
-        int(width * scale_x),
-        int(height * scale_y)
-    )
+def get_font_size_pt(font_size_px):
+    if font_size_px <= 0:
+        return 12
+    return max(8, int(font_size_px * 0.8))
 
-def add_text_element(slide, element, ppt_width, ppt_height):
+def add_text_element(slide, element, debug=False):
     x, y, width, height = element['x'], element['y'], element['width'], element['height']
     text = element.get('text', '').strip()
     
     if not text:
         return
-    
-    if x < 0 or y < 0 or x >= ppt_width or y >= ppt_height:
-        print(f"Skipping text element - out of bounds: x={x}, y={y}")
-        return
-    
-    width = min(width, ppt_width - x)
-    height = min(height, ppt_height - y)
-    
-    if width <= 0 or height <= 0:
-        print(f"Skipping text element - invalid dimensions")
-        return
+
+    x = max(0, min(x, 1280))
+    y = max(0, min(y, 720))
+    width = max(10, min(width, 1280 - x))
+    height = max(10, min(height, 720 - y))
     
     try:
         textbox = slide.shapes.add_textbox(
-            Emu(x * 9525), Emu(y * 9525),
-            Emu(width * 9525), Emu(height * 9525)
+            pixels_to_emu(x), pixels_to_emu(y),
+            pixels_to_emu(width), pixels_to_emu(height)
         )
         
         text_frame = textbox.text_frame
         text_frame.clear()
         text_frame.text = text
+
         text_frame.word_wrap = True
         text_frame.auto_size = None
+        text_frame.vertical_anchor = MSO_ANCHOR.TOP
+
+        text_frame.margin_left = 0
+        text_frame.margin_right = 0
+        text_frame.margin_top = 0
+        text_frame.margin_bottom = 0
         
         paragraph = text_frame.paragraphs[0]
         styles = element.get('styles', {})
-        
-        font_size = safe_int_conversion(styles.get('fontSize', '12').replace('px', ''))
-        if font_size > 0:
-            paragraph.font.size = Pt(pixels_to_pt(font_size))
+
+        font_size_px = safe_float_conversion(styles.get('fontSize', '12').replace('px', ''))
+        if font_size_px > 0:
+            font_size_pt = get_font_size_pt(font_size_px)
+            paragraph.font.size = Pt(font_size_pt)
+            if debug:
+                print(f"Font size: {font_size_px}px -> {font_size_pt}pt")
         
         font_family = styles.get('fontFamily', 'Arial')
         if font_family:
+            if ',' in font_family:
+                font_family = font_family.split(',')[0].strip()
             paragraph.font.name = font_family
         
         font_weight = styles.get('fontWeight', 'normal')
         if font_weight == 'bold' or safe_int_conversion(font_weight) >= 700:
             paragraph.font.bold = True
-        
+
         if styles.get('fontStyle') == 'italic':
             paragraph.font.italic = True
-        
+
         text_color = parse_color(styles.get('color', 'black'))
         if text_color:
             paragraph.font.color.rgb = text_color
@@ -175,9 +183,10 @@ def add_text_element(slide, element, ppt_width, ppt_height):
             fill = textbox.fill
             fill.solid()
             fill.fore_color.rgb = bg_color
-        
+        else:
+            textbox.fill.background()
+
         border_width, border_style, border_color = parse_border(styles.get('border'))
-        border_radius = parse_border_radius(styles.get('borderRadius'))
         if border_width and border_width > 0:
             line = textbox.line
             line.width = Pt(border_width)
@@ -185,51 +194,60 @@ def add_text_element(slide, element, ppt_width, ppt_height):
                 line.color.rgb = border_color
             if border_style == 'dashed':
                 line.dash_style = MSO_LINE.DASH
+        else:
+            textbox.line.fill.background()
         
-        padding = styles.get('padding', '0px')
-        if padding and padding != '0px':
-            text_frame.margin_left = Emu(safe_int_conversion(padding.replace('px', '')) * 9525)
-            text_frame.margin_right = Emu(safe_int_conversion(padding.replace('px', '')) * 9525)
-            text_frame.margin_top = Emu(safe_int_conversion(padding.replace('px', '')) * 9525)
-            text_frame.margin_bottom = Emu(safe_int_conversion(padding.replace('px', '')) * 9525)
+        padding_top = safe_int_conversion(styles.get('paddingTop', '0').replace('px', ''))
+        padding_right = safe_int_conversion(styles.get('paddingRight', '0').replace('px', ''))
+        padding_bottom = safe_int_conversion(styles.get('paddingBottom', '0').replace('px', ''))
+        padding_left = safe_int_conversion(styles.get('paddingLeft', '0').replace('px', ''))
         
-        print(f"Added text: '{text[:30]}...' at ({x}, {y})")
+        if padding_top > 0:
+            text_frame.margin_top = pixels_to_emu(padding_top)
+        if padding_right > 0:
+            text_frame.margin_right = pixels_to_emu(padding_right)
+        if padding_bottom > 0:
+            text_frame.margin_bottom = pixels_to_emu(padding_bottom)
+        if padding_left > 0:
+            text_frame.margin_left = pixels_to_emu(padding_left)
+        
+        if debug:
+            print(f"Added text: '{text[:50]}...' at ({x}, {y}) size ({width}x{height})")
         
     except Exception as e:
         print(f"Failed to add text element: {e}")
+        print(f"Element data: x={x}, y={y}, width={width}, height={height}")
 
-def add_shape_element(slide, element, ppt_width, ppt_height):
+def add_shape_element(slide, element, debug=False):
     x, y, width, height = element['x'], element['y'], element['width'], element['height']
     styles = element.get('styles', {})
     
     bg_color = parse_color(styles.get('backgroundColor'))
     border_width, border_style, border_color = parse_border(styles.get('border'))
     border_radius = parse_border_radius(styles.get('borderRadius'))
-    
+
     if not bg_color and not border_width:
         return
-    
-    if x < 0 or y < 0 or x >= ppt_width or y >= ppt_height:
-        print(f"Skipping shape element - out of bounds: x={x}, y={y}")
-        return
-    
-    width = min(width, ppt_width - x)
-    height = min(height, ppt_height - y)
-    
-    if width <= 0 or height <= 0:
-        print(f"Skipping shape element - invalid dimensions")
-        return
+
+    x = max(0, min(x, 1280))
+    y = max(0, min(y, 720))
+    width = max(1, min(width, 1280 - x))
+    height = max(1, min(height, 720 - y))
     
     try:
         shape_type = MSO_SHAPE.ROUNDED_RECTANGLE if border_radius > 0 else MSO_SHAPE.RECTANGLE
+        
         shape = slide.shapes.add_shape(
             shape_type,
-            Emu(x * 9525), Emu(y * 9525),
-            Emu(width * 9525), Emu(height * 9525)
+            pixels_to_emu(x), pixels_to_emu(y),
+            pixels_to_emu(width), pixels_to_emu(height)
         )
 
         if border_radius > 0 and shape_type == MSO_SHAPE.ROUNDED_RECTANGLE:
-            shape.adjustments[0] = border_radius
+            try:
+                shape.adjustments[0] = border_radius
+            except:
+                pass
         
         if bg_color:
             fill = shape.fill
@@ -237,7 +255,7 @@ def add_shape_element(slide, element, ppt_width, ppt_height):
             fill.fore_color.rgb = bg_color
         else:
             shape.fill.background()
-        
+
         if border_width and border_width > 0:
             line = shape.line
             line.width = Pt(border_width)
@@ -248,49 +266,48 @@ def add_shape_element(slide, element, ppt_width, ppt_height):
         else:
             shape.line.fill.background()
         
-        print(f"Added shape (type: {shape_type}) at ({x}, {y}) with size ({width}, {height}), radius={border_radius}")
+        if debug:
+            print(f"Added shape at ({x}, {y}) size ({width}x{height}), radius={border_radius}")
         
     except Exception as e:
         print(f"Failed to add shape element: {e}")
 
-def add_image_element(slide, element, ppt_width, ppt_height):
+def add_image_element(slide, element, debug=False):
     x, y, width, height = element['x'], element['y'], element['width'], element['height']
     img_src = element.get('src', '')
     
     if not img_src:
         return
-    
-    if x < 0 or y < 0 or x >= ppt_width or y >= ppt_height:
-        print(f"Skipping image element - out of bounds: x={x}, y={y}")
-        return
-    
-    width = min(width, ppt_width - x)
-    height = min(height, ppt_height - y)
-    
-    if width <= 0 or height <= 0:
-        print(f"Skipping image element - invalid dimensions")
-        return
+
+    x = max(0, min(x, 1280))
+    y = max(0, min(y, 720))
+    width = max(1, min(width, 1280 - x))
+    height = max(1, min(height, 720 - y))
     
     try:
         temp_path = None
-        
+
         if img_src.startswith('data:'):
             header, data = img_src.split(',', 1)
             img_data = base64.b64decode(data)
             temp_path = 'temp_image.png'
             with open(temp_path, 'wb') as f:
                 f.write(img_data)
-        
+
         elif img_src.startswith('http'):
-            response = requests.get(img_src, timeout=10)
-            if response.status_code == 200:
-                temp_path = 'temp_image.png'
-                with open(temp_path, 'wb') as f:
-                    f.write(response.content)
-            else:
-                print(f"Failed to download image: {img_src}, status: {response.status_code}")
+            try:
+                response = requests.get(img_src, timeout=10)
+                if response.status_code == 200:
+                    temp_path = 'temp_image.png'
+                    with open(temp_path, 'wb') as f:
+                        f.write(response.content)
+                else:
+                    print(f"Failed to download image: {img_src}, status: {response.status_code}")
+                    return
+            except Exception as e:
+                print(f"Error downloading image {img_src}: {e}")
                 return
-        
+
         else:
             if os.path.exists(img_src):
                 temp_path = img_src
@@ -309,82 +326,84 @@ def add_image_element(slide, element, ppt_width, ppt_height):
         
         slide.shapes.add_picture(
             temp_path,
-            Emu(x * 9525), Emu(y * 9525),
-            Emu(width * 9525), Emu(height * 9525)
+            pixels_to_emu(x), pixels_to_emu(y),
+            pixels_to_emu(width), pixels_to_emu(height)
         )
-        
+
         if temp_path != img_src and os.path.exists(temp_path):
             os.remove(temp_path)
         
-        print(f"Added image: {img_src} at ({x}, {y})")
+        if debug:
+            print(f"Added image: {img_src} at ({x}, {y}) size ({width}x{height})")
         
     except Exception as e:
         print(f"Failed to add image element: {e}")
         if temp_path and temp_path != img_src and os.path.exists(temp_path):
-            os.remove(temp_path)
+            try:
+                os.remove(temp_path)
+            except:
+                pass
 
-def create_pptx_from_json(json_path, output_path='output.pptx'):
+def create_pptx_from_json(json_path, output_path='output.pptx', debug=False):
     try:
         with open(json_path, 'r', encoding='utf-8') as f:
             slides_data = json.load(f)
     except Exception as e:
         print(f"Error reading JSON file: {e}")
         return
-    
+
     prs = Presentation()
-    ppt_width = 1920
-    ppt_height = 1080
-    prs.slide_width = Emu(ppt_width * 9525)
-    prs.slide_height = Emu(ppt_height * 9525)
+    ppt_width = 1280
+    ppt_height = 720
+    prs.slide_width = pixels_to_emu(ppt_width)
+    prs.slide_height = pixels_to_emu(ppt_height)
     
-    print(f"Creating presentation with {len(slides_data)} slides")
+    print(f"Creating 720p presentation ({ppt_width}x{ppt_height}) with {len(slides_data)} slides")
     
     for slide_info in slides_data:
         slide_id = slide_info.get('slideId', 'Unknown')
         elements = slide_info.get('elements', [])
-        
+
         slide = prs.slides.add_slide(prs.slide_layouts[6])
         
-        print(f"\nProcessing slide {slide_id} with {len(elements)} elements")
-        
-        source_width = elements[0].get('slideWidth', ppt_width) if elements else ppt_width
-        source_height = elements[0].get('slideHeight', ppt_height) if elements else ppt_height
-        
+        if debug:
+            print(f"\nProcessing slide {slide_id} with {len(elements)} elements")
+
         def get_z_index(element):
-            z_index = element.get('styles', {}).get('zIndex', '0')
-            return safe_int_conversion(z_index, 0)
+            return element.get('zIndex', 0)
         
         elements_sorted = sorted(elements, key=get_z_index)
-        
+
         for element in elements_sorted:
-            if source_width != ppt_width or source_height != ppt_height:
-                scaled_x, scaled_y, scaled_width, scaled_height = scale_coordinates(
-                    element['x'], element['y'], element['width'], element['height'],
-                    source_width, source_height, ppt_width, ppt_height
-                )
-                element['x'] = scaled_x
-                element['y'] = scaled_y
-                element['width'] = scaled_width
-                element['height'] = scaled_height
-            
             element_type = element.get('type', '').lower()
             
+            if debug:
+                print(f"Processing {element_type} at ({element['x']}, {element['y']}) size ({element['width']}x{element['height']})")
+
             if element_type == 'img':
-                add_image_element(slide, element, ppt_width, ppt_height)
-            elif element_type in ['div', 'span', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'] and element.get('text'):
-                add_text_element(slide, element, ppt_width, ppt_height)
+                add_image_element(slide, element, debug)
+
             elif element_type == 'div':
                 styles = element.get('styles', {})
-                if (styles.get('backgroundColor') and styles['backgroundColor'] != 'rgba(0, 0, 0, 0)') or \
-                   (styles.get('border') and styles['border'] != 'none') or \
-                   (styles.get('borderRadius') and styles['borderRadius'] != '0px'):
-                    add_shape_element(slide, element, ppt_width, ppt_height)
+                has_background = styles.get('backgroundColor') and styles['backgroundColor'] != 'rgba(0, 0, 0, 0)'
+                has_border = styles.get('border') and styles['border'] != 'none'
+                has_border_radius = styles.get('borderRadius') and styles['borderRadius'] != '0px'
+                
+                if has_background or has_border or has_border_radius:
+                    add_shape_element(slide, element, debug)
+
+                if element.get('text'):
+                    add_text_element(slide, element, debug)
+            
+            elif element_type in ['span', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'] and element.get('text'):
+                add_text_element(slide, element, debug)
     
     try:
         prs.save(output_path)
-        print(f"\nPowerPoint presentation saved successfully as '{output_path}'")
+        print(f"\n720p PowerPoint presentation saved successfully as '{output_path}'")
+        print(f"Slide dimensions: {ppt_width}x{ppt_height} pixels")
     except Exception as e:
         print(f"Error saving presentation: {e}")
 
 if __name__ == "__main__":
-    create_pptx_from_json('slides_data.json', 'output.pptx')
+    create_pptx_from_json('slides_data.json', 'output_720p.pptx', debug=True)

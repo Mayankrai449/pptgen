@@ -3,6 +3,11 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+tempCodeRunnerFile.js
+tempCodeRunnerFile.py
+node_modules/
+slides_data.json
+
 # C extensions
 *.so
 

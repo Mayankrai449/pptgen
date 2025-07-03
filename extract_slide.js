@@ -2,13 +2,22 @@ const puppeteer = require('puppeteer');
 const fs = require('fs').promises;
 
 async function extractSlideData(htmlFilePath, outputPath) {
-    const browser = await puppeteer.launch({ headless: false, devtools: false });
+    const browser = await puppeteer.launch({ 
+        headless: false, 
+        devtools: false,
+        args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
     const page = await browser.newPage();
     
-    await page.setViewport({ width: 1920, height: 1080 });
+    await page.setViewport({ width: 1280, height: 720 });
     
     const htmlContent = await fs.readFile(htmlFilePath, 'utf-8');
     await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+
+    await page.waitForFunction(() => {
+        const images = Array.from(document.querySelectorAll('img'));
+        return images.every(img => img.complete);
+    }, { timeout: 10000 }).catch(() => console.log('Some images may not have loaded'));
 
     const slidesData = await page.evaluate(async () => {
         const slides = [];
@@ -51,10 +60,10 @@ async function extractSlideData(htmlFilePath, outputPath) {
             }
 
             if (isImage) {
-                return true;
+                return element.src && element.src.trim() !== '';
             }
 
-            return false;
+            return hasVisibleText;
         }
 
         function extractStyles(element) {
@@ -97,7 +106,45 @@ async function extractSlideData(htmlFilePath, outputPath) {
                 zIndex: styles.zIndex,
                 boxShadow: styles.boxShadow,
                 transform: styles.transform,
-                overflow: styles.overflow
+                overflow: styles.overflow,
+                whiteSpace: styles.whiteSpace,
+                wordWrap: styles.wordWrap,
+                textOverflow: styles.textOverflow
+            };
+        }
+
+        function getTextContent(element) {
+            const styles = window.getComputedStyle(element);
+            const text = element.textContent.trim();
+            
+            if (styles.whiteSpace === 'nowrap') {
+                return text.replace(/\s+/g, ' ');
+            }
+            
+            return text;
+        }
+
+        function calculateTextMetrics(element, text) {
+            const styles = window.getComputedStyle(element);
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            
+            const fontSize = parseFloat(styles.fontSize);
+            const fontFamily = styles.fontFamily.replace(/"/g, '').split(',')[0].trim();
+            const fontWeight = styles.fontWeight;
+            
+            context.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
+            
+            const metrics = context.measureText(text);
+            const textWidth = metrics.width;
+            const textHeight = fontSize * 1.2;
+            
+            return {
+                textWidth: textWidth,
+                textHeight: textHeight,
+                fontSize: fontSize,
+                fontFamily: fontFamily,
+                fontWeight: fontWeight
             };
         }
 
@@ -107,21 +154,27 @@ async function extractSlideData(htmlFilePath, outputPath) {
             });
 
             const slideDiv = slideDivs[slideIndex];
-            const slideContent = { slideId: slideIndex + 1, elements: [] };
+            const slideContent = { 
+                slideId: slideIndex + 1, 
+                elements: [],
+                slideWidth: 1280,
+                slideHeight: 720
+            };
 
             window.scrollTo(0, 0);
+            
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
             const slideRect = slideDiv.getBoundingClientRect();
-            const slideWidth = slideRect.width;
-            const slideHeight = slideRect.height;
 
             const allElements = Array.from(slideDiv.querySelectorAll('*'));
             const elementsToProcess = allElements.filter(element => {
                 const rect = element.getBoundingClientRect();
-                const relativeX = rect.left - slideRect.left;
-                const relativeY = rect.top - slideRect.top;
-                if (relativeX < -10 || relativeY < -10 || relativeX > slideWidth + 10 || relativeY > slideHeight + 10) {
+
+                if (rect.right < 0 || rect.bottom < 0 || rect.left > 1280 || rect.top > 720) {
                     return false;
                 }
+                
                 return shouldProcessElement(element);
             });
 
@@ -139,25 +192,23 @@ async function extractSlideData(htmlFilePath, outputPath) {
                 const rect = element.getBoundingClientRect();
                 const styles = extractStyles(element);
                 
-                const relativeX = rect.left - slideRect.left;
-                const relativeY = rect.top - slideRect.top;
-                const maxWidth = slideWidth - relativeX;
-                const maxHeight = slideHeight - relativeY;
-                const clampedWidth = Math.min(rect.width, maxWidth);
-                const clampedHeight = Math.min(rect.height, maxHeight);
+                const x = Math.max(0, Math.round(rect.left));
+                const y = Math.max(0, Math.round(rect.top));
+                const width = Math.max(0, Math.round(rect.width));
+                const height = Math.max(0, Math.round(rect.height));
 
                 const elementData = {
                     type: element.tagName.toLowerCase(),
-                    x: Math.max(0, relativeX),
-                    y: Math.max(0, relativeY),
-                    width: Math.max(0, clampedWidth),
-                    height: Math.max(0, clampedHeight),
-                    slideWidth: slideWidth,
-                    slideHeight: slideHeight,
+                    x: x,
+                    y: y,
+                    width: width,
+                    height: height,
+                    slideWidth: 1280,
+                    slideHeight: 720,
                     styles: styles,
                     className: element.className,
                     id: element.id,
-                    zIndex: styles.zIndex
+                    zIndex: parseInt(styles.zIndex) || 0
                 };
 
                 if (['div', 'span', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'].includes(element.tagName.toLowerCase())) {
@@ -165,10 +216,28 @@ async function extractSlideData(htmlFilePath, outputPath) {
                         .filter(node => node.nodeType === Node.TEXT_NODE)
                         .map(node => node.textContent.trim())
                         .join(' ');
-                    elementData.text = directText || element.textContent.trim();
-                } else if (element.tagName.toLowerCase() === 'img') {
+                    
+                    const text = directText || getTextContent(element);
+                    
+                    if (text) {
+                        elementData.text = text;
+
+                        const textMetrics = calculateTextMetrics(element, text);
+                        elementData.textMetrics = textMetrics;
+
+                        if (textMetrics.textWidth > width && styles.whiteSpace !== 'nowrap') {
+                            elementData.needsWrapping = true;
+                        }
+                    }
+                } 
+                else if (element.tagName.toLowerCase() === 'img') {
                     elementData.src = element.src;
                     elementData.alt = element.alt || '';
+
+                    if (element.naturalWidth && element.naturalHeight) {
+                        elementData.naturalWidth = element.naturalWidth;
+                        elementData.naturalHeight = element.naturalHeight;
+                    }
                 }
 
                 slideContent.elements.push(elementData);
@@ -177,18 +246,21 @@ async function extractSlideData(htmlFilePath, outputPath) {
             if (slideContent.elements.length > 0) {
                 slides.push(slideContent);
             }
-            processedElements.clear();
         }
 
         return slides;
     });
 
-    await fs.writeFile(outputPath, JSON.stringify(slidesData, null, 2));
+    await fs.writeFile(outputPath, JSON.stringify(slidesData, null, 2), 'utf-8');
+    console.log(`Successfully extracted ${slidesData.length} slides to ${outputPath}`);
+    console.log(`Target resolution: 1280x720 (720p)`);
+    
     await browser.close();
-    console.log(`Extracted ${slidesData.length} slides with ${slidesData.reduce((sum, slide) => sum + slide.elements.length, 0)} total elements`);
-    return slidesData;
 }
 
-extractSlideData('input.html', 'slides_data.json')
-    .then(() => console.log('Slide data saved to slides_data.json'))
-    .catch(err => console.error('Error:', err));
+const htmlFilePath = 'input.html';
+const outputPath = 'slides_data.json';
+
+extractSlideData(htmlFilePath, outputPath).catch(err => {
+    console.error('Error:', err);
+});

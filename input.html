@@ -13,64 +13,73 @@
             background-color: #ffffff;
             margin: 0;
             padding: 0;
+            width: 100vw;
+            height: 100vh;
+            overflow-x: hidden;
+            overflow-y: auto;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
         }
         .container {
-            width: 100%;
-            max-width: 1800px;
-            margin: 0 auto;
-            padding: 40px 20px;
+            width: 1180px; /* 1280px - 100px for left and right margins */
+            height: auto;
+            margin: 50px auto;
+            padding: 0;
+            max-width: calc(100vw - 100px);
+            box-sizing: border-box;
         }
         .slides {
             position: relative;
-            width: 1800px;
-            height: 1080px;
+            width: 100%;
+            height: auto;
+            min-height: 500px;
             overflow: hidden;
-            margin-bottom: 40px;
         }
         .chart-title {
             font-family: 'InterDisplay-Bold', Arial, sans-serif;
-            font-size: 42px;
+            font-size: 28px;
             color: #000000;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
             font-weight: bold;
+            text-align: left;
         }
         .section {
             border: 2px solid;
-            border-radius: 30px;
-            padding: 30px;
+            border-radius: 15px;
+            padding: 20px;
             display: flex;
             flex-direction: row;
+            gap: 20px;
         }
         .section.integrated { border-color: #095DA0; }
         .section.modular { border-color: #006159; }
         .section.sector { border-color: #5C382A; }
         .section-header {
-            flex: 0 0 35%;
+            flex: 0 0 300px;
         }
         .function-title {
             font-family: 'InterDisplay-Bold', Arial, sans-serif;
-            font-size: 38px;
+            font-size: 22px;
             color: #1C1C1C;
-            margin-bottom: 25px;
+            margin-bottom: 12px;
             line-height: 1.2;
             font-weight: bold;
-            max-width: 400px;
         }
         .summary {
-            font-size: 18px;
+            font-size: 14px;
             color: #5E6160;
             line-height: 1.4;
-            margin-bottom: 20px;
-            max-width: 400px;
+            margin-bottom: 10px;
         }
         .segments-container {
             flex: 1;
-            padding-left: 20px;
         }
         .segment {
-            margin-bottom: 40px;
+            margin-bottom: 20px;
             display: flex;
             align-items: flex-start;
+            gap: 20px;
         }
         .segment:last-child {
             margin-bottom: 0;
@@ -80,28 +89,26 @@
         }
         .segment-title {
             font-family: 'InterDisplay-Bold', Arial, sans-serif;
-            font-size: 24px;
+            font-size: 18px;
             color: #1C1C1C;
-            margin-bottom: 35px;
+            margin-bottom: 15px;
             white-space: normal;
             font-weight: bold;
         }
         .roles {
-            margin-bottom: 10px;
+            margin-bottom: 5px;
             display: flex;
             flex-wrap: wrap;
-            gap: 10px;
+            gap: 8px;
         }
         .role-box {
             border: 2px solid;
-            border-radius: 30px;
-            padding: 9px 14px;
-            font-size: 16px;
+            border-radius: 12px;
+            padding: 6px 12px;
+            font-size: 12px;
             white-space: nowrap;
             display: inline-block;
             flex: 0 0 auto;
-            max-width: calc(50% - 7.5px);
-            min-width: fit-content;
             text-align: center;
         }
         .role-box.integrated { border-color: #2D74B2; color: #0A5DA0; }
@@ -111,30 +118,30 @@
             flex: 0 0 300px;
             display: flex;
             flex-wrap: wrap;
-            gap: 25px 10px;
-            justify-content: flex-end;
+            gap: 15px 12px;
+            justify-content: flex-start;
         }
         .company {
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: flex-start;
-            width: 90px;
+            width: 65px;
         }
         .company img {
-            width: 37px;
-            height: 37px;
-            margin-bottom: 5px;
+            width: 28px;
+            height: 28px;
+            margin-bottom: 4px;
             flex-shrink: 0;
         }
         .company span {
             font-family: 'InterDisplay-Bold', Arial, sans-serif;
-            font-size: 16px;
+            font-size: 11px;
             color: #2C2C2C;
             text-align: center;
             word-wrap: break-word;
             line-height: 1.2;
-            max-width: 90px;
+            max-width: 65px;
             white-space: normal;
             overflow: hidden;
             display: -webkit-box;
@@ -147,23 +154,24 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            margin-top: 20px;
         }
         .footer span {
             font-family: 'InterDisplay-Bold', Arial, sans-serif;
-            font-size: 37px;
+            font-size: 20px;
             color: #000000;
-            margin-right: 10px;
+            margin-right: 8px;
             font-weight: bold;
         }
         .footer img {
-            width: 218px;
-            height: 180px;
+            width: 120px;
+            height: 98px;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <!-- Slide 1: Integrated - OEM Electric Vehicle Platforms -->
+
         <div class="slides">
             <div class="chart-title">Autonomous Vehicles | Market Map</div>
             <div class="section integrated">
@@ -196,120 +204,12 @@
             </div>
             <div class="footer">
                 <span>Powered by</span>
-                <img src="https://duplocloud.com/wp-content/uploads-webpc/uploads/2025/03/Property-1wokelo-logo-Property-2batch4-Property-3black.png.webp" alt="Wokelo">
+                <img src="https://duplocloud.com/wp-content/uploads/2025/03/Property-1wokelo-logo-Property-2batch4-Property-3black.png" alt="Wokelo">
             </div>
         </div>
 
-        <!-- Slide 2: Integrated - Robotaxi and Ride-Hailing -->
-        <div class="slides">
-            <div class="chart-title">Autonomous Vehicles | Market Map</div>
-            <div class="section integrated">
-                <div class="section-header">
-                    <div>
-                        <div class="function-title">Integrated Autonomous Vehicle Development</div>
-                        <div class="summary">Companies building and operating proprietary autonomous fleets and platforms.</div>
-                    </div>
-                </div>
-                <div class="segments-container">
-                    <div class="segment">
-                        <div class="segment-content">
-                            <div class="segment-title">Robotaxi and Ride-Hailing</div>
-                            <div class="roles">
-                                <div class="role-box integrated">Urban robotaxi operations</div>
-                                <div class="role-box integrated">On-demand ride dispatch</div>
-                                <div class="role-box integrated">Fleet operations management</div>
-                                <div class="role-box integrated">Passenger experience design</div>
-                                <div class="role-box integrated">Mobility service platform</div>
-                            </div>
-                        </div>
-                        <div class="companies">
-                            <div class="company"><img src="https://wklogo.blob.core.windows.net/logos-thumbnail/pony-ai.png" alt="Pony.ai"><span>Pony.ai</span></div>
-                            <div class="company"><img src="https://wklogo.blob.core.windows.net/logos-thumbnail/zoox.png" alt="Zoox"><span>Zoox</span></div>
-                            <div class="company"><img src="https://wklogo.blob.core.windows.net/logos-thumbnail/waymo.png" alt="Waymo"><span>Waymo</span></div>
-                            <div class="company"><img src="https://wklogo.blob.core.windows.net/logos-thumbnail/cruise.png" alt="Cruise"><span>Cruise</span></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="footer">
-                <span>Powered by</span>
-                <img src="https://duplocloud.com/wp-content/uploads-webpc/uploads/2025/03/Property-1wokelo-logo-Property-2batch4-Property-3black.png.webp" alt="Wokelo">
-            </div>
-        </div>
+        
 
-        <!-- Slide 3: Integrated - Freight and Truck Automation -->
-        <div class="slides">
-            <div class="chart-title">Autonomous Vehicles | Market Map</div>
-            <div class="section integrated">
-                <div class="section-header">
-                    <div>
-                        <div class="function-title">Integrated Autonomous Vehicle Development</div>
-                        <div class="summary">Companies building and operating proprietary autonomous fleets and platforms.</div>
-                    </div>
-                </div>
-                <div class="segments-container">
-                    <div class="segment">
-                        <div class="segment-content">
-                            <div class="segment-title">Freight and Truck Automation</div>
-                            <div class="roles">
-                                <div class="role-box integrated">Long-haul truck autonomy</div>
-                                <div class="role-box integrated">Logistics fleet integration</div>
-                                <div class="role-box integrated">Fleet management tools</div>
-                                <div class="role-box integrated">Truck electrification systems</div>
-                                <div class="role-box integrated">Transportation-as-a-Service</div>
-                            </div>
-                        </div>
-                        <div class="companies">
-                            <div class="company"><img src="https://wklogo.blob.core.windows.net/logos-thumbnail/stack-av.png" alt="Stack AV"><span>Stack AV</span></div>
-                            <div class="company"><img src="https://wklogo.blob.core.windows.net/logos-thumbnail/kodiak-robotics-inc.png" alt="Kodiak Robotics"><span>Kodiak Robotics</span></div>
-                            <div class="company"><img src="https://wklogo.blob.core.windows.net/logos-thumbnail/inceptio-technology.png" alt="Inceptio Technology"><span>Inceptio Technology</span></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="footer">
-                <span>Powered by</span>
-                <img src="https://duplocloud.com/wp-content/uploads-webpc/uploads/2025/03/Property-1wokelo-logo-Property-2batch4-Property-3black.png.webp" alt="Wokelo">
-            </div>
-        </div>
-
-        <!-- Slide 4: Integrated - Public Transit and Shuttle Services -->
-        <div class="slides">
-            <div class="chart-title">Autonomous Vehicles | Market Map</div>
-            <div class="section integrated">
-                <div class="section-header">
-                    <div>
-                        <div class="function-title">Integrated Autonomous Vehicle Development</div>
-                        <div class="summary">Companies building and operating proprietary autonomous fleets and platforms.</div>
-                    </div>
-                </div>
-                <div class="segments-container">
-                    <div class="segment">
-                        <div class="segment-content">
-                            <div class="segment-title">Public Transit and Shuttle Services</div>
-                            <div class="roles">
-                                <div class="role-box integrated">Geofenced shuttle operations</div>
-                                <div class="role-box integrated">First-mile/last-mile transit</div>
-                                <div class="role-box integrated">Route planning systems</div>
-                                <div class="role-box integrated">Fleet scheduling tools</div>
-                                <div class="role-box integrated">Mobility-as-a-Service</div>
-                            </div>
-                        </div>
-                        <div class="companies">
-                            <div class="company"><img src="https://wklogo.blob.core.windows.net/logos-thumbnail/beep-4e16.png" alt="Beep"><span>Beep</span></div>
-                            <div class="company"><img src="https://wklogo.blob.core.windows.net/logos-thumbnail/optimus-ride.png" alt="Optimus Ride"><span>Optimus Ride</span></div>
-                            <div class="company"><img src="https://wklogo.blob.core.windows.net/logos-thumbnail/may-mobility.png" alt="May Mobility"><span>May Mobility</span></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="footer">
-                <span>Powered by</span>
-                <img src="https://duplocloud.com/wp-content/uploads-webpc/uploads/2025/03/Property-1wokelo-logo-Property-2batch4-Property-3black.png.webp" alt="Wokelo">
-            </div>
-        </div>
-
-        <!-- Slide 5: Modular - Autonomous Driving Software -->
         <div class="slides">
             <div class="chart-title">Autonomous Vehicles | Market Map</div>
             <div class="section modular">
@@ -342,118 +242,12 @@
             </div>
             <div class="footer">
                 <span>Powered by</span>
-                <img src="https://duplocloud.com/wp-content/uploads-webpc/uploads/2025/03/Property-1wokelo-logo-Property-2batch4-Property-3black.png.webp" alt="Wokelo">
+                <img src="https://duplocloud.com/wp-content/uploads/2025/03/Property-1wokelo-logo-Property-2batch4-Property-3black.png" alt="Wokelo">
             </div>
         </div>
+        
+        
 
-        <!-- Slide 6: Modular - Perception and Sensor Technologies -->
-        <div class="slides">
-            <div class="chart-title">Autonomous Vehicles | Market Map</div>
-            <div class="section modular">
-                <div class="section-header">
-                    <div>
-                        <div class="function-title">Modular AV Software and Sensors</div>
-                        <div class="summary">Providers of core autonomous software, perception sensors, and validation tools for AV developers.</div>
-                    </div>
-                </div>
-                <div class="segments-container">
-                    <div class="segment">
-                        <div class="segment-content">
-                            <div class="segment-title">Perception and Sensor Technologies</div>
-                            <div class="roles">
-                                <div class="role-box modular">LiDAR sensor development</div>
-                                <div class="role-box modular">3D vision systems</div>
-                                <div class="role-box modular">GNSS positioning services</div>
-                                <div class="role-box modular">Camera-based perception</div>
-                                <div class="role-box modular">Sensor software integration</div>
-                            </div>
-                        </div>
-                        <div class="companies">
-                            <div class="company"><img src="https://wklogo.blob.core.windows.net/logos-thumbnail/aeva.png" alt="Aeva"><span>Aeva</span></div>
-                            <div class="company"><img src="https://wklogo.blob.core.windows.net/logos-thumbnail/velodyne-lidar.png" alt="Velodyne Lidar"><span>Velodyne Lidar</span></div>
-                            <div class="company"><img src="https://wklogo.blob.core.windows.net/logos-thumbnail/innoviz-technologies.png" alt="Innoviz Technologies"><span>Innoviz Technologies</span></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="footer">
-                <span>Powered by</span>
-                <img src="https://duplocloud.com/wp-content/uploads-webpc/uploads/2025/03/Property-1wokelo-logo-Property-2batch4-Property-3black.png.webp" alt="Wokelo">
-            </div>
-        </div>
-
-        <!-- Slide 7: Modular - Simulation and Validation Platforms -->
-        <div class="slides">
-            <div class="chart-title">Autonomous Vehicles | Market Map</div>
-            <div class="section modular">
-                <div class="section-header">
-                    <div>
-                        <div class="function-title">Modular AV Software and Sensors</div>
-                        <div class="summary">Providers of core autonomous software, perception sensors, and validation tools for AV developers.</div>
-                    </div>
-                </div>
-                <div class="segments-container">
-                    <div class="segment">
-                        <div class="segment-content">
-                            <div class="segment-title">Simulation and Validation Platforms</div>
-                            <div class="roles">
-                                <div class="role-box modular">Scenario simulation</div>
-                                <div class="role-box modular">Digital twin creation</div>
-                                <div class="role-box modular">ADAS validation</div>
-                                <div class="role-box modular">Software testing tools</div>
-                                <div class="role-box modular">Synthetic data generation</div>
-                            </div>
-                        </div>
-                        <div class="companies">
-                            <div class="company"><img src="https://wklogo.blob.core.windows.net/logos-thumbnail/applied-intuition.png" alt="Applied Intuition"><span>Applied Intuition</span></div>
-                            <div class="company"><img src="https://wklogo.blob.core.windows.net/logos-thumbnail/cognata.png" alt="Cognata"><span>Cognata</span></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="footer">
-                <span>Powered by</span>
-                <img src="https://duplocloud.com/wp-content/uploads-webpc/uploads/2025/03/Property-1wokelo-logo-Property-2batch4-Property-3black.png.webp" alt="Wokelo">
-            </div>
-        </div>
-
-        <!-- Slide 8: Modular - Fleet Safety and Management Platforms -->
-        <div class="slides">
-            <div class="chart-title">Autonomous Vehicles | Market Map</div>
-            <div class="section modular">
-                <div class="section-header">
-                    <div>
-                        <div class="function-title">Modular AV Software and Sensors</div>
-                        <div class="summary">Providers of core autonomous software, perception sensors, and validation tools for AV developers.</div>
-                    </div>
-                </div>
-                <div class="segments-container">
-                    <div class="segment">
-                        <div class="segment-content">
-                            <div class="segment-title">Fleet Safety and Management Platforms</div>
-                            <div class="roles">
-                                <div class="role-box modular">Driver safety monitoring</div>
-                                <div class="role-box modular">Fleet telematics</div>
-                                <div class="role-box modular">Real-time coaching</div>
-                                <div class="role-box modular">Performance analytics</div>
-                                <div class="role-box modular">Regulatory compliance</div>
-                            </div>
-                        </div>
-                        <div class="companies">
-                            <div class="company"><img src="https://wklogo.blob.core.windows.net/logos-thumbnail/nauto-inc.png" alt="Nauto"><span>Nauto</span></div>
-                            <div class="company"><img src="https://wklogo.blob.core.windows.net/logos-thumbnail/cyngn.png" alt="CYNGN"><span>CYNGN</span></div>
-                            <div class="company"><img src="https://wklogo.blob.core.windows.net/logos-thumbnail/42dot.png" alt="42dot"><span>42dot</span></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="footer">
-                <span>Powered by</span>
-                <img src="https://duplocloud.com/wp-content/uploads-webpc/uploads/2025/03/Property-1wokelo-logo-Property-2batch4-Property-3black.png.webp" alt="Wokelo">
-            </div>
-        </div>
-
-        <!-- Slide 9: Sector-Specific - Industrial and Warehouse Automation -->
         <div class="slides">
             <div class="chart-title">Autonomous Vehicles | Market Map</div>
             <div class="section sector">
@@ -485,94 +279,11 @@
             </div>
             <div class="footer">
                 <span>Powered by</span>
-                <img src="https://duplocloud.com/wp-content/uploads-webpc/uploads/2025/03/Property-1wokelo-logo-Property-2batch4-Property-3black.png.webp" alt="Wokelo">
+                <img src="https://duplocloud.com/wp-content/uploads/2025/03/Property-1wokelo-logo-Property-2batch4-Property-3black.png" alt="Wokelo">
             </div>
         </div>
 
-        <!-- Slide 10: Sector-Specific - Agriculture and Off-Road Automation -->
-        <div class="slides">
-            <div class="chart-title">Autonomous Vehicles | Market Map</div>
-            <div class="section sector">
-                <div class="section-header">
-                    <div>
-                        <div class="function-title">Sector-Specific Autonomous Mobility Solutions</div>
-                        <div class="summary">Companies delivering autonomous solutions tailored for distinct industry verticals beyond passenger transport.</div>
-                    </div>
-                </div>
-                <div class="segments-container">
-                    <div class="segment">
-                        <div class="segment-content">
-                            <div class="segment-title">Agriculture and Off-Road Automation</div>
-                            <div class="roles">
-                                <div class="role-box sector">Autonomous tractor navigation</div>
-                                <div class="role-box sector">Off-road vehicle autonomy</div>
-                                <div class="role-box sector">Farm robotics integration</div>
-                                <div class="role-box sector">Terrain mapping</div>
-                            </div>
-                        </div>
-                        <div class="companies">
-                            <div class="company"><img src="https://wklogo.blob.core.windows.net/logos-thumbnail/vatn-systems.png" alt="Vatn Systems"><span>Vatn Systems</span></div>
-                            <div class="company"><img src="https://wklogo.blob.core.windows.net/logos-thumbnail/monarch-tractors.png" alt="Monarch Tractor"><span>Monarch Tractor</span></div>
-                            <div class="company"><img src="https://wklogo.blob.core.windows.net/logos-thumbnail/overland-ai.png" alt="Overland AI"><span>Overland AI</span></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="footer">
-                <span>Powered by</span>
-                <img src="https://duplocloud.com/wp-content/uploads-webpc/uploads/2025/03/Property-1wokelo-logo-Property-2batch4-Property-3black.png.webp" alt="Wokelo">
-            </div>
-        </div>
-
-        <!-- Slide 11: Sector-Specific - Maritime and Aerial + Infrastructure -->
-        <div class="slides">
-            <div class="chart-title">Autonomous Vehicles | Market Map</div>
-            <div class="section sector">
-                <div class="section-header">
-                    <div>
-                        <div class="function-title">Sector-Specific Autonomous Mobility Solutions</div>
-                        <div class="summary">Companies delivering autonomous solutions tailored for distinct industry verticals beyond passenger transport.</div>
-                    </div>
-                </div>
-                <div class="segments-container">
-                    <div class="segment">
-                        <div class="segment-content">
-                            <div class="segment-title">Maritime and Aerial Autonomous Systems</div>
-                            <div class="roles">
-                                <div class="role-box sector">Uncrewed surface vehicles</div>
-                                <div class="role-box sector">Aerial cargo drones</div>
-                                <div class="role-box sector">Flight control systems</div>
-                                <div class="role-box sector">Environmental sensing</div>
-                            </div>
-                        </div>
-                        <div class="companies">
-                            <div class="company"><img src="https://wklogo.blob.core.windows.net/logos-thumbnail/near-earth-autonomy.png" alt="Near Earth Autonomy"><span>Near Earth Autonomy</span></div>
-                            <div class="company"><img src="https://wklogo.blob.core.windows.net/logos-thumbnail/saildrone.png" alt="Saildrone"><span>Saildrone</span></div>
-                            <div class="company"><img src="https://wklogo.blob.core.windows.net/logos-thumbnail/skyways.png" alt="Skyways"><span>Skyways</span></div>
-                        </div>
-                    </div>
-                    <div class="segment">
-                        <div class="segment-content">
-                            <div class="segment-title">Infrastructure and Roadside Solutions</div>
-                            <div class="roles">
-                                <div class="role-box sector">Smart road infrastructure</div>
-                                <div class="role-box sector">V2X communication networks</div>
-                                <div class="role-box sector">Roadway performance monitoring</div>
-                                <div class="role-box sector">Infrastructure data services</div>
-                            </div>
-                        </div>
-                        <div class="companies">
-                            <div class="company"><img src="https://wklogo.blob.core.windows.net/logos-thumbnail/cavnue.png" alt="Cavnue"><span>Cavnue</span></div>
-                            <div class="company"><img src="https://wklogo.blob.core.windows.net/logos-thumbnail/hyperspec-ai.png" alt="Hyperspec-ai"><span>Hyperspec-ai</span></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="footer">
-                <span>Powered by</span>
-                <img src="https://duplocloud.com/wp-content/uploads-webpc/uploads/2025/03/Property-1wokelo-logo-Property-2batch4-Property-3black.png.webp" alt="Wokelo">
-            </div>
-        </div>
+        
     </div>
 </body>
 </html>
