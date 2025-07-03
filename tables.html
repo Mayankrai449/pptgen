@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Table with Responsive Cells</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            box-sizing: border-box;
+            background-color: #f8f9fa;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 15px;
+            font-size: 28px;
+        }
+        h2 {
+            color: #555;
+            margin-top: 10px;
+            margin-bottom: 10px;
+            font-size: 22px;
+        }
+        .content-wrapper {
+            display: flex;
+            flex-direction: column;
+            min-height: calc(100vh - 40px);
+        }
+        .intro-section {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .intro-section p {
+            margin: 10px 0;
+            font-size: 16px;
+        }
+        .tables-section {
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+            flex: 1;
+            align-items: flex-start;
+        }
+        .table-container {
+            width: 48%;
+            display: flex;
+            flex-direction: column;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+            vertical-align: top;
+            /* Remove fixed dimensions - let content determine size */
+            width: auto;
+            height: auto;
+            min-height: 40px; /* Minimum height for cells */
+        }
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        /* Dynamic column widths based on content */
+        td:first-child {
+            font-weight: bold;
+            white-space: nowrap;
+            min-width: 80px;
+        }
+        td:nth-child(2) {
+            word-wrap: break-word;
+            max-width: 300px;
+        }
+        td:last-child {
+            text-align: center;
+            min-width: 100px;
+        }
+        /* Dynamic image sizing */
+        img {
+            max-width: 100%;
+            height: auto;
+            display: block;
+            margin: 0 auto;
+            border-radius: 4px;
+        }
+        .img-tiny { max-height: 30px; max-width: 30px; }
+        .img-small { max-height: 50px; max-width: 80px; }
+        .img-medium { max-height: 80px; max-width: 120px; }
+        .img-large { max-height: 120px; max-width: 180px; }
+        .img-xlarge { max-height: 150px; max-width: 200px; }
+        .img-huge { max-height: 200px; max-width: 250px; }
+        
+        /* Text sizing classes */
+        .text-tiny { font-size: 11px; }
+        .text-small { font-size: 13px; }
+        .text-medium { font-size: 14px; }
+        .text-large { font-size: 16px; }
+        .text-xlarge { font-size: 18px; }
+        
+        .additional-content {
+            text-align: center;
+            margin: 15px 0;
+        }
+        .additional-content h3 {
+            margin: 10px 0;
+            font-size: 20px;
+            color: #444;
+        }
+        .additional-content p {
+            margin: 8px 0;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+        .image-wrapper {
+            text-align: center;
+            margin: 15px 0;
+        }
+        .image-wrapper img {
+            max-height: 100px;
+        }
+        
+        /* Hover effects */
+        tr:hover {
+            background-color: #f8f9fa;
+        }
+        
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .tables-section {
+                flex-direction: column;
+            }
+            .table-container {
+                width: 100%;
+                margin-bottom: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="content-wrapper">
+        <div class="intro-section">
+            <h1>Dynamic Table Cells Demo</h1>
+            <h2>Cells Auto-Adjust to Content Size</h2>
+            <p>Watch how table cells dynamically resize based on their content - text length and image dimensions.</p>
+        </div>
+
+        <div class="tables-section">
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th>Description</th>
+                            <th>Visual</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Laptop Pro</td>
+                            <td class="text-large">An incredibly powerful and versatile laptop designed for professionals, creatives, and power users. Features cutting-edge processors, extensive memory configurations, high-resolution displays, advanced graphics capabilities, robust build quality, exceptional battery life, comprehensive connectivity options, and enterprise-grade security features that make it perfect for demanding workloads, creative projects, software development, data analysis, and multimedia production tasks.</td>
+                            <td><img src="wokelo-full-logo-black-color.png" alt="Laptop Pro" class="img-xlarge"></td>
+                        </tr>
+                        <tr>
+                            <td>Phone X</td>
+                            <td class="text-tiny">Compact smartphone.</td>
+                            <td><img src="wokelo-full-logo-black-color.png" alt="Phone X" class="img-tiny"></td>
+                        </tr>
+                        <tr>
+                            <td>Tablet Ultra</td>
+                            <td class="text-medium">A premium tablet with stunning display, powerful performance, and all-day battery life. Perfect for productivity and entertainment.</td>
+                            <td><img src="wokelo-full-logo-black-color.png" alt="Tablet Ultra" class="img-medium"></td>
+                        </tr>
+                        <tr>
+                            <td>Smart Watch</td>
+                            <td class="text-small">Fitness tracking, notifications, apps.</td>
+                            <td><img src="wokelo-full-logo-black-color.png" alt="Smart Watch" class="img-small"></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="table-container">
+                <div class="additional-content">
+                    <h3>Extended Product Catalog</h3>
+                    <p>Notice how each cell dynamically adjusts its size based on content complexity and image dimensions.</p>
+                </div>
+
+                <div class="image-wrapper">
+                    <img src="wokelo-full-logo-black-color.png" alt="Featured Product" class="img-large">
+                </div>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Item</th>
+                            <th>Specifications</th>
+                            <th>Preview</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Gaming Monitor</td>
+                            <td class="text-xlarge">Ultra-wide 34" curved gaming monitor with 144Hz refresh rate, 1ms response time, HDR10 support, G-Sync compatibility, quantum dot technology, ergonomic stand with height/tilt/swivel adjustments, multiple connectivity options including USB-C, DisplayPort, and HDMI, built-in USB hub, customizable RGB lighting, and professional color calibration for the ultimate gaming and professional experience. This monitor transforms your workspace into a command center with its immersive display technology and premium build quality.</td>
+                            <td><img src="wokelo-full-logo-black-color.png" alt="Featured Product" class="img-large"></td>
+                        </tr>
+                        <tr>
+                            <td>USB-C Hub</td>
+                            <td class="text-tiny">7-in-1 hub.</td>
+                            <td><div style="width: 25px; height: 15px; background: linear-gradient(45deg, #a8edea 0%, #fed6e3 100%); border-radius: 2px; margin: 0 auto;"></div></td>
+                        </tr>
+                        <tr>
+                            <td>Wireless Headphones</td>
+                            <td class="text-medium">Premium noise-cancelling headphones with 30-hour battery life, high-resolution audio, comfortable over-ear design, and smart features.</td>
+                            <td><img src="wokelo-full-logo-black-color.png" alt="Featured Product" class="img-large"></td>
+                        </tr>
+                        <tr>
+                            <td>Mechanical Keyboard</td>
+                            <td class="text-large">Full-size mechanical keyboard with Cherry MX switches, customizable RGB backlighting, programmable keys, dedicated media controls, aircraft-grade aluminum construction, and premium keycaps for the ultimate typing experience.</td>
+                            <td><img src="wokelo-full-logo-black-color.png" alt="Featured Product" class="img-tiny"></td>
+                        </tr>
+                        <tr>
+                            <td>Webcam HD</td>
+                            <td class="text-small">1080p webcam with auto-focus and built-in microphone.</td>
+                            <td><img src="wokelo-full-logo-black-color.png" alt="Featured Product" class="img-huge"></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
