@@ -6,32 +6,39 @@
     <title>Autonomous Vehicles | Market Map</title>
     <style>
         * {
-            box-sizing: border-box;
+        box-sizing: border-box;
         }
         body {
             font-family: 'InterDisplay-Regular', Arial, sans-serif;
             background-color: #ffffff;
             margin: 0;
             padding: 0;
+            width: 100vw; /* Full viewport width */
+            min-height: 100vh; /* At least full viewport height */
+            display: flex;
+            justify-content: center; /* Center content horizontally */
+            align-items: flex-start; /* Align content at the top vertically */
+            overflow-x: hidden; /* Prevent horizontal scroll */
         }
         .container {
-            width: 100%;
-            max-width: 1800px;
-            margin: 0 auto;
-            padding: 40px 20px;
+            width: 100%; /* Use full width up to max-width */
+            max-width: 1180px; /* Cap the width at 1180px */
+            margin: 50px auto; /* Auto margins for horizontal centering */
+            padding: 0 20px; /* Optional padding for inner content */
         }
         .chart-title {
             font-family: 'InterDisplay-Bold', Arial, sans-serif;
-            font-size: 42px;
+            font-size: 24px;
             color: #000000;
-            margin-bottom: 30px;
+            margin-bottom: 15px;
             font-weight: bold;
+            text-align: left;
         }
         .section {
             border: 2px solid;
-            border-radius: 30px;
-            padding: 30px;
-            margin-bottom: 40px;
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 20px;
             display: flex;
             flex-direction: row;
         }
@@ -40,33 +47,32 @@
         .section.sector { border-color: #5C382A; }
         
         .section-header {
-            flex: 0 0 35%;
+            flex: 0 0 30%;
+            padding-right: 15px;
         }
         
         .function-title {
             font-family: 'InterDisplay-Bold', Arial, sans-serif;
-            font-size: 38px;
+            font-size: 18px;
             color: #1C1C1C;
-            margin-bottom: 25px;
+            margin-bottom: 12px;
             line-height: 1.2;
             font-weight: bold;
-            max-width: 400px;
         }
         .summary {
-            font-size: 18px;
+            font-size: 12px;
             color: #5E6160;
-            line-height: 1.4;
-            margin-bottom: 20px;
-            max-width: 400px;
+            line-height: 1.3;
+            margin-bottom: 12px;
         }
         
         .segments-container {
             flex: 1;
-            padding-left: 20px;
+            padding-left: 15px;
         }
         
         .segment {
-            margin-bottom: 40px;
+            margin-bottom: 18px;
             display: flex;
             align-items: flex-start;
         }
@@ -81,9 +87,9 @@
         
         .segment-title {
             font-family: 'InterDisplay-Bold', Arial, sans-serif;
-            font-size: 24px;
+            font-size: 14px;
             color: #1C1C1C;
-            margin-bottom: 35px;
+            margin-bottom: 12px;
             white-space: normal;
             font-weight: bold;
         }
@@ -92,19 +98,17 @@
             margin-bottom: 10px;
             display: flex;
             flex-wrap: wrap;
-            gap: 10px;
+            gap: 8px;
         }
         
         .role-box {
             border: 2px solid;
-            border-radius: 30px;
-            padding: 5px 9px;
-            font-size: 16px;
+            border-radius: 20px;
+            padding: 6px 10px;
+            font-size: 12px;
             white-space: nowrap;
             display: inline-block;
             flex: 0 0 auto;
-            max-width: calc(50% - 7.5px);
-            min-width: fit-content;
             text-align: center;
         }
         
@@ -113,10 +117,10 @@
         .role-box.sector { border-color: #72544A; color: #613A30; }
         
         .companies {
-            flex: 0 0 300px;
+            flex: 0 0 220px;
             display: flex;
             flex-wrap: wrap;
-            gap: 25px 10px;
+            gap: 12px 6px;
             justify-content: flex-end;
         }
         
@@ -125,24 +129,24 @@
             flex-direction: column;
             align-items: center;
             justify-content: flex-start;
-            width: 90px;
+            width: 65px;
         }
         
         .company img {
-            width: 37px;
-            height: 37px;
-            margin-bottom: 5px;
+            width: 24px;
+            height: 24px;
+            margin-bottom: 3px;
             flex-shrink: 0;
         }
         
         .company span {
             font-family: 'InterDisplay-Bold', Arial, sans-serif;
-            font-size: 16px;
+            font-size: 11px;
             color: #2C2C2C;
             text-align: center;
             word-wrap: break-word;
-            line-height: 1.2;
-            max-width: 90px;
+            line-height: 1.1;
+            max-width: 65px;
             white-space: normal;
             overflow: hidden;
             display: -webkit-box;
@@ -152,28 +156,28 @@
         }
         
         .separator {
-            border-top: 3px solid #E7EAE8;
-            margin: 30px 0;
+            border-top: 1px solid #E7EAE8;
+            margin: 15px 0;
             width: 100%;
         }
         
         .footer {
             text-align: center;
-            margin-top: 40px;
+            margin-top: 20px;
             display: flex;
             align-items: center;
             justify-content: center;
         }
         .footer span {
             font-family: 'InterDisplay-Bold', Arial, sans-serif;
-            font-size: 37px;
+            font-size: 16px;
             color: #000000;
-            margin-right: 10px;
+            margin-right: 6px;
             font-weight: bold;
         }
         .footer img {
-            width: 218px;
-            height: 180px;
+            width: 100px;
+            height: 80px;
         }
     </style>
 </head>
