@@ -9,22 +9,74 @@ async function extractSlideData(htmlFilePath, outputPath) {
     });
     const page = await browser.newPage();
     
-    await page.setViewport({ width: 1280, height: 720 });
-    
+    // Read HTML content first to get initial dimensions
     const htmlContent = await fs.readFile(htmlFilePath, 'utf-8');
+    
+    // Set initial viewport - we'll adjust this based on content
+    await page.setViewport({ width: 1280, height: 720 });
     await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
 
+    // Wait for images to load
     await page.waitForFunction(() => {
         const images = Array.from(document.querySelectorAll('img'));
         return images.every(img => img.complete);
     }, { timeout: 10000 }).catch(() => console.log('Some images may not have loaded'));
 
-    const slideData = await page.evaluate(async () => {
+    // Calculate actual document dimensions
+    const documentDimensions = await page.evaluate(() => {
+        // Get the actual content dimensions
+        const body = document.body;
+        const html = document.documentElement;
+        
+        // Calculate actual width and height including all content
+        const actualWidth = Math.max(
+            body.scrollWidth,
+            body.offsetWidth,
+            html.clientWidth,
+            html.scrollWidth,
+            html.offsetWidth
+        );
+        
+        const actualHeight = Math.max(
+            body.scrollHeight,
+            body.offsetHeight,
+            html.clientHeight,
+            html.scrollHeight,
+            html.offsetHeight
+        );
+
+        // Also get viewport dimensions for reference
+        const viewportWidth = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
+        const viewportHeight = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
+
+        return {
+            actualWidth,
+            actualHeight,
+            viewportWidth,
+            viewportHeight
+        };
+    });
+
+    console.log('Document dimensions:', documentDimensions);
+
+    // Adjust viewport to match content if needed
+    const targetWidth = Math.max(documentDimensions.actualWidth, 1280);
+    const targetHeight = Math.max(documentDimensions.actualHeight, 720);
+    
+    await page.setViewport({ 
+        width: targetWidth, 
+        height: targetHeight 
+    });
+
+
+    const slideData = await page.evaluate(async (dimensions) => {
         const slide = { 
             slideId: 1, 
             elements: [],
-            slideWidth: 1280,
-            slideHeight: 720
+            slideWidth: dimensions.actualWidth,
+            slideHeight: dimensions.actualHeight,
+            viewportWidth: dimensions.viewportWidth,
+            viewportHeight: dimensions.viewportHeight
         };
         const processedElements = new Set();
 
@@ -152,15 +204,55 @@ async function extractSlideData(htmlFilePath, outputPath) {
             };
         }
 
+        function getAccuratePosition(element) {
+            const rect = element.getBoundingClientRect();
+            const styles = window.getComputedStyle(element);
+            
+            // Account for document scroll position
+            const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+            const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
+            
+            // Get more accurate positioning
+            let x = rect.left + scrollLeft;
+            let y = rect.top + scrollTop;
+            
+            // Account for borders and padding in positioning if needed
+            const borderLeft = parseFloat(styles.borderLeftWidth) || 0;
+            const borderTop = parseFloat(styles.borderTopWidth) || 0;
+            
+            // Round to avoid sub-pixel positioning issues
+            x = Math.round(x);
+            y = Math.round(y);
+            
+            // Ensure minimum values
+            x = Math.max(0, x);
+            y = Math.max(0, y);
+            
+            return {
+                x: x,
+                y: y,
+                width: Math.round(rect.width),
+                height: Math.round(rect.height),
+                // Store original rect for debugging
+                originalRect: {
+                    left: rect.left,
+                    top: rect.top,
+                    width: rect.width,
+                    height: rect.height
+                }
+            };
+        }
+
+        // Ensure we start from top-left
         window.scrollTo(0, 0);
         await new Promise(resolve => setTimeout(resolve, 100));
         
         const allElements = Array.from(document.querySelectorAll('body *'));
         const elementsToProcess = allElements.filter(element => {
-            const rect = element.getBoundingClientRect();
             return shouldProcessElement(element);
         });
 
+        // Sort elements by position (top to bottom, left to right)
         elementsToProcess.sort((a, b) => {
             const rectA = a.getBoundingClientRect();
             const rectB = b.getBoundingClientRect();
@@ -172,26 +264,30 @@ async function extractSlideData(htmlFilePath, outputPath) {
             const elementId = getElementId(element);
             processedElements.add(elementId);
 
-            const rect = element.getBoundingClientRect();
+            const position = getAccuratePosition(element);
             const styles = extractStyles(element);
-            
-            const x = Math.max(0, Math.round(rect.left));
-            const y = Math.max(0, Math.round(rect.top));
-            const width = Math.max(0, Math.round(rect.width));
-            const height = Math.max(0, Math.round(rect.height));
 
             const elementData = {
                 type: element.tagName.toLowerCase(),
-                x: x,
-                y: y,
-                width: width,
-                height: height,
-                slideWidth: 1280,
-                slideHeight: 720,
+                x: position.x,
+                y: position.y,
+                width: position.width,
+                height: position.height,
+                slideWidth: dimensions.actualWidth,
+                slideHeight: dimensions.actualHeight,
                 styles: styles,
                 className: element.className,
                 id: element.id,
-                zIndex: parseInt(styles.zIndex) || 0
+                zIndex: parseInt(styles.zIndex) || 0,
+                // Add positioning debug info
+                positionInfo: {
+                    originalRect: position.originalRect,
+                    computedPosition: styles.position,
+                    scrollOffset: {
+                        x: window.pageXOffset || document.documentElement.scrollLeft,
+                        y: window.pageYOffset || document.documentElement.scrollTop
+                    }
+                }
             };
 
             if (['div', 'span', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'].includes(element.tagName.toLowerCase())) {
@@ -207,7 +303,7 @@ async function extractSlideData(htmlFilePath, outputPath) {
                     const textMetrics = calculateTextMetrics(element, text);
                     elementData.textMetrics = textMetrics;
 
-                    if (textMetrics.textWidth > width && styles.whiteSpace !== 'nowrap') {
+                    if (textMetrics.textWidth > position.width && styles.whiteSpace !== 'nowrap') {
                         elementData.needsWrapping = true;
                     }
                 }
@@ -219,6 +315,13 @@ async function extractSlideData(htmlFilePath, outputPath) {
                 if (element.naturalWidth && element.naturalHeight) {
                     elementData.naturalWidth = element.naturalWidth;
                     elementData.naturalHeight = element.naturalHeight;
+                    
+                    // Calculate scaling information
+                    elementData.scaling = {
+                        scaleX: position.width / element.naturalWidth,
+                        scaleY: position.height / element.naturalHeight,
+                        aspectRatio: element.naturalWidth / element.naturalHeight
+                    };
                 }
             }
 
@@ -226,11 +329,13 @@ async function extractSlideData(htmlFilePath, outputPath) {
         });
 
         return [slide];
-    });
+    }, documentDimensions);
 
     await fs.writeFile(outputPath, JSON.stringify(slideData, null, 2), 'utf-8');
     console.log(`Successfully extracted 1 slide to ${outputPath}`);
-    console.log(`Target resolution: 1280x720 (720p)`);
+    console.log(`Actual dimensions: ${documentDimensions.actualWidth}x${documentDimensions.actualHeight}`);
+    console.log(`Viewport dimensions: ${documentDimensions.viewportWidth}x${documentDimensions.viewportHeight}`);
+    console.log(`Elements extracted: ${slideData[0].elements.length}`);
     
     await browser.close();
 }

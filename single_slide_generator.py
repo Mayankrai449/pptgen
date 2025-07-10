@@ -1,7 +1,7 @@
 import json
 import base64
 from pptx import Presentation
-from pptx.util import Pt
+from pptx.util import Pt, Inches
 from pptx.dml.color import RGBColor
 from pptx.enum.shapes import MSO_SHAPE, MSO_CONNECTOR
 from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
@@ -171,7 +171,7 @@ def parse_border(styles):
                 border_color = parse_color(match.group(3))
 
     if border_width > 0:
-        border_width = max(0.5, border_width * 0.75)
+        border_width = max(0.5, border_width)
     
     return border_width, border_style, border_color
 
@@ -190,12 +190,24 @@ def parse_border_radius(radius_str, shape_width, shape_height):
         return 0
 
 def pixels_to_emu(pixels):
+    """Convert pixels to EMU (English Metric Units) - 1 pixel = 9525 EMU"""
     return int(pixels * 9525)
 
 def get_font_size_pt(font_size_px):
+    """Convert font size from pixels to points with more accurate conversion"""
     if font_size_px <= 0:
         return 12
-    return max(8, int(font_size_px * 0.8))
+    return max(8, int(font_size_px * 0.75))
+
+def constrain_to_bounds(x, y, width, height, slide_width, slide_height):
+    """Constrain element bounds to slide dimensions"""
+    x = max(0, min(x, slide_width - 1))
+    y = max(0, min(y, slide_height - 1))
+    
+    width = max(1, min(width, slide_width - x))
+    height = max(1, min(height, slide_height - y))
+    
+    return x, y, width, height
 
 def add_separator_element(slide, element, slide_width, slide_height, debug=False):
     x, y, width = element['x'], element['y'], element['width']
@@ -206,13 +218,11 @@ def add_separator_element(slide, element, slide_width, slide_height, debug=False
         border_width = safe_float_conversion(styles.get('borderTopWidth', '1').replace('px', ''), 1)
         border_style = styles.get('borderTopStyle', 'solid')
         border_color = parse_color(styles.get('borderTopColor', '#E7EAE8'))
-    
+
     if not border_width or not border_color:
         return
 
-    x = max(0, min(x, slide_width - 1))
-    y = max(0, min(y, slide_height - 1))
-    width = max(1, min(width, slide_width - x))
+    x, y, width, _ = constrain_to_bounds(x, y, width, 1, slide_width, slide_height)
     
     try:
         connector = slide.shapes.add_connector(
@@ -224,7 +234,7 @@ def add_separator_element(slide, element, slide_width, slide_height, debug=False
         )
         
         line = connector.line
-        line.width = Pt(max(0.5, border_width * 0.75))
+        line.width = Pt(border_width)
         line.color.rgb = border_color
         
         if border_style == 'dashed':
@@ -245,18 +255,32 @@ def add_text_element(slide, element, slide_width, slide_height, debug=False):
     if not text:
         return
 
-    x = max(0, min(x, slide_width - 10))
-    y = max(0, min(y, slide_height - 10))
-    width = max(10, min(width, slide_width - x))
-    height = max(10, min(height, slide_height - y))
+    x, y, width, height = constrain_to_bounds(x, y, width, height, slide_width, slide_height)
+    styles = element.get('styles', {})
+    
+    # Get padding values
+    padding_top = safe_int_conversion(styles.get('paddingTop', '0').replace('px', ''))
+    padding_right = safe_int_conversion(styles.get('paddingRight', '0').replace('px', ''))
+    padding_bottom = safe_int_conversion(styles.get('paddingBottom', '0').replace('px', ''))
+    padding_left = safe_int_conversion(styles.get('paddingLeft', '0').replace('px', ''))
+    
+    # Adjust textbox position and size to account for padding
+    textbox_x = x + padding_left
+    textbox_y = y + padding_top
+    textbox_width = width - padding_left - padding_right
+    textbox_height = height - padding_top - padding_bottom
+    
+    # Ensure minimum dimensions
+    textbox_width = max(1, textbox_width)
+    textbox_height = max(1, textbox_height)
     
     try:
         textbox = slide.shapes.add_textbox(
-            pixels_to_emu(x), pixels_to_emu(y),
-            pixels_to_emu(width), pixels_to_emu(height)
+            pixels_to_emu(textbox_x), pixels_to_emu(textbox_y),
+            pixels_to_emu(textbox_width), pixels_to_emu(textbox_height)
         )
         
-        # shadow textbox
+        # Disable shadow
         textbox.shadow.inherit = False
         
         text_frame = textbox.text_frame
@@ -264,21 +288,46 @@ def add_text_element(slide, element, slide_width, slide_height, debug=False):
         text_frame.text = text
         text_frame.word_wrap = True
         text_frame.auto_size = None
-        text_frame.vertical_anchor = MSO_ANCHOR.TOP
+        
+        # Set margins to 0 for precise positioning since we already adjusted the textbox
         text_frame.margin_left = 0
         text_frame.margin_right = 0
         text_frame.margin_top = 0
         text_frame.margin_bottom = 0
         
+        # Set vertical alignment to center by default
+        vertical_align = styles.get('verticalAlign', 'middle')
+        line_height = styles.get('lineHeight', 'normal')
+        
+        if vertical_align in ['middle', 'center']:
+            text_frame.vertical_anchor = MSO_ANCHOR.MIDDLE
+        elif vertical_align == 'bottom':
+            text_frame.vertical_anchor = MSO_ANCHOR.BOTTOM
+        else:
+            text_frame.vertical_anchor = MSO_ANCHOR.TOP
+        
         paragraph = text_frame.paragraphs[0]
-        styles = element.get('styles', {})
 
+        # More accurate font sizing
         font_size_px = safe_float_conversion(styles.get('fontSize', '12').replace('px', ''))
         if font_size_px > 0:
             font_size_pt = get_font_size_pt(font_size_px)
             paragraph.font.size = Pt(font_size_pt)
             if debug:
                 print(f"Font size: {font_size_px}px -> {font_size_pt}pt")
+        
+        # Handle line height for better vertical spacing
+        if line_height and line_height != 'normal':
+            try:
+                if line_height.endswith('px'):
+                    line_height_val = safe_float_conversion(line_height.replace('px', ''))
+                    if font_size_px > 0:
+                        line_spacing = line_height_val / font_size_px
+                        paragraph.line_spacing = line_spacing
+                elif line_height.replace('.', '').isdigit():
+                    paragraph.line_spacing = float(line_height)
+            except:
+                pass
         
         font_family = styles.get('fontFamily', 'Arial')
         if font_family:
@@ -297,18 +346,20 @@ def add_text_element(slide, element, slide_width, slide_height, debug=False):
         if text_color:
             paragraph.font.color.rgb = text_color
         
-        # textshadow dis
+        # Disable text shadow
         paragraph.font.shadow = False
         
-        text_align = styles.get('textAlign', 'left')
+        # Set horizontal alignment to center by default
+        text_align = styles.get('textAlign', 'center')
         alignment_map = {
             'left': PP_ALIGN.LEFT,
             'center': PP_ALIGN.CENTER,
             'right': PP_ALIGN.RIGHT,
             'justify': PP_ALIGN.JUSTIFY
         }
-        paragraph.alignment = alignment_map.get(text_align, PP_ALIGN.LEFT)
+        paragraph.alignment = alignment_map.get(text_align, PP_ALIGN.CENTER)
         
+        # Handle background color
         bg_color = parse_color(styles.get('backgroundColor'))
         if bg_color:
             fill = textbox.fill
@@ -317,24 +368,11 @@ def add_text_element(slide, element, slide_width, slide_height, debug=False):
         else:
             textbox.fill.background()
 
+        # Remove textbox border
         textbox.line.fill.background()
         
-        padding_top = safe_int_conversion(styles.get('paddingTop', '0').replace('px', ''))
-        padding_right = safe_int_conversion(styles.get('paddingRight', '0').replace('px', ''))
-        padding_bottom = safe_int_conversion(styles.get('paddingBottom', '0').replace('px', ''))
-        padding_left = safe_int_conversion(styles.get('paddingLeft', '0').replace('px', ''))
-        
-        if padding_top > 0:
-            text_frame.margin_top = pixels_to_emu(padding_top)
-        if padding_right > 0:
-            text_frame.margin_right = pixels_to_emu(padding_right)
-        if padding_bottom > 0:
-            text_frame.margin_bottom = pixels_to_emu(padding_bottom)
-        if padding_left > 0:
-            text_frame.margin_left = pixels_to_emu(padding_left)
-        
         if debug:
-            print(f"Added text: '{text[:50]}...' at ({x}, {y}) size ({width}x{height})")
+            print(f"Added text: '{text[:50]}...' at ({textbox_x}, {textbox_y}) size ({textbox_width}x{textbox_height}), padding: {padding_top},{padding_right},{padding_bottom},{padding_left}")
     
     except Exception as e:
         print(f"Failed to add text element: {e}")
@@ -351,10 +389,7 @@ def add_shape_element(slide, element, slide_width, slide_height, debug=False):
     if not bg_color and not border_width and not text:
         return
 
-    x = max(0, min(x, slide_width - 1))
-    y = max(0, min(y, slide_height - 1))
-    width = max(1, min(width, slide_width - x))
-    height = max(1, min(height, slide_height - y))
+    x, y, width, height = constrain_to_bounds(x, y, width, height, slide_width, slide_height)
     
     try:
         shape_type = MSO_SHAPE.ROUNDED_RECTANGLE if border_radius > 0 else MSO_SHAPE.RECTANGLE
@@ -365,7 +400,7 @@ def add_shape_element(slide, element, slide_width, slide_height, debug=False):
             pixels_to_emu(width), pixels_to_emu(height)
         )
         
-        # shadow disablw
+        # Disable shadow
         shape.shadow.inherit = False
 
         if border_radius > 0 and shape_type == MSO_SHAPE.ROUNDED_RECTANGLE:
@@ -388,6 +423,8 @@ def add_shape_element(slide, element, slide_width, slide_height, debug=False):
                 line.color.rgb = border_color
             if border_style == 'dashed':
                 line.dash_style = MSO_LINE.DASH
+            elif border_style == 'dotted':
+                line.dash_style = MSO_LINE.ROUND_DOT
             else:
                 line.dash_style = MSO_LINE.SOLID
         else:
@@ -399,15 +436,30 @@ def add_shape_element(slide, element, slide_width, slide_height, debug=False):
             text_frame.text = text
             text_frame.word_wrap = True
             text_frame.auto_size = None
-            text_frame.vertical_anchor = MSO_ANCHOR.TOP
+            
+            # Set vertical alignment to center by default
+            vertical_align = styles.get('verticalAlign', 'middle')
+            if vertical_align in ['middle', 'center']:
+                text_frame.vertical_anchor = MSO_ANCHOR.MIDDLE
+            elif vertical_align == 'bottom':
+                text_frame.vertical_anchor = MSO_ANCHOR.BOTTOM
+            else:
+                text_frame.vertical_anchor = MSO_ANCHOR.TOP
 
-            text_frame.margin_left = pixels_to_emu(safe_int_conversion(styles.get('paddingLeft', '0').replace('px', '')))
-            text_frame.margin_right = pixels_to_emu(safe_int_conversion(styles.get('paddingRight', '0').replace('px', '')))
-            text_frame.margin_top = pixels_to_emu(safe_int_conversion(styles.get('paddingTop', '0').replace('px', '')))
-            text_frame.margin_bottom = pixels_to_emu(safe_int_conversion(styles.get('paddingBottom', '0').replace('px', '')))
+            # Apply padding more accurately
+            padding_left = safe_int_conversion(styles.get('paddingLeft', '0').replace('px', ''))
+            padding_right = safe_int_conversion(styles.get('paddingRight', '0').replace('px', ''))
+            padding_top = safe_int_conversion(styles.get('paddingTop', '0').replace('px', ''))
+            padding_bottom = safe_int_conversion(styles.get('paddingBottom', '0').replace('px', ''))
+            
+            text_frame.margin_left = pixels_to_emu(padding_left)
+            text_frame.margin_right = pixels_to_emu(padding_right)
+            text_frame.margin_top = pixels_to_emu(padding_top)
+            text_frame.margin_bottom = pixels_to_emu(padding_bottom)
             
             paragraph = text_frame.paragraphs[0]
             
+            # More accurate font sizing
             font_size_px = safe_float_conversion(styles.get('fontSize', '12').replace('px', ''))
             if font_size_px > 0:
                 font_size_pt = get_font_size_pt(font_size_px)
@@ -433,14 +485,15 @@ def add_shape_element(slide, element, slide_width, slide_height, debug=False):
             # Disable shadow for text in shape
             paragraph.font.shadow = False
             
-            text_align = styles.get('textAlign', 'left')
+            # Set horizontal alignment to center by default
+            text_align = styles.get('textAlign', 'center')
             alignment_map = {
                 'left': PP_ALIGN.LEFT,
                 'center': PP_ALIGN.CENTER,
                 'right': PP_ALIGN.RIGHT,
                 'justify': PP_ALIGN.JUSTIFY
             }
-            paragraph.alignment = alignment_map.get(text_align, PP_ALIGN.LEFT)
+            paragraph.alignment = alignment_map.get(text_align, PP_ALIGN.CENTER)
         
         if debug:
             print(f"Added shape at ({x}, {y}) size ({width}x{height}), radius={border_radius}, text='{text[:50]}...'")
@@ -455,10 +508,7 @@ def add_image_element(slide, element, slide_width, slide_height, debug=False):
     if not img_src:
         return
 
-    x = max(0, min(x, slide_width - 1))
-    y = max(0, min(y, slide_height - 1))
-    width = max(1, min(width, slide_width - x))
-    height = max(1, min(height, slide_height - y))
+    x, y, width, height = constrain_to_bounds(x, y, width, height, slide_width, slide_height)
     
     try:
         temp_path = None
@@ -520,18 +570,28 @@ def create_pptx_from_json(json_path, output_path=None, debug=False, base_size='1
     """Create PowerPoint presentation from JSON with HTML-like content fitting."""
     try:
         with open(json_path, 'r', encoding='utf-8') as f:
-            slides_data = json.load(f)
+            data = json.load(f)
     except Exception as e:
         print(f"Error reading JSON file: {e}")
         return
 
+    # Check if data has slide dimensions or if it's just an array of slides
+    if isinstance(data, dict) and 'slideWidth' in data and 'slideHeight' in data:
+        slide_width = int(data['slideWidth'])
+        slide_height = int(data['slideHeight'])
+        slides_data = data.get('slides', [])
+        size_name = f"JSON Specified {slide_width}x{slide_height}"
+        print(f"Using slide dimensions from JSON: {slide_width}x{slide_height}")
+    else:
+        # Fallback to old behavior if dimensions not provided
+        slides_data = data if isinstance(data, list) else [data]
+        content_width, content_height = analyze_content_bounds(slides_data)
+        slide_width, slide_height, size_name = calculate_optimal_slide_size(content_width, content_height, base_size, padding)
+        
+        if center_content:
+            slides_data = center_content_on_slide(slides_data, slide_width, slide_height, content_width, content_height, padding)
+
     print(f"Loaded {len(slides_data)} slides from {json_path}")
-    
-    content_width, content_height = analyze_content_bounds(slides_data)
-    slide_width, slide_height, size_name = calculate_optimal_slide_size(content_width, content_height, base_size, padding)
-    
-    if center_content:
-        slides_data = center_content_on_slide(slides_data, slide_width, slide_height, content_width, content_height, padding)
     
     prs = Presentation()
     prs.slide_width = pixels_to_emu(slide_width)
@@ -539,7 +599,6 @@ def create_pptx_from_json(json_path, output_path=None, debug=False, base_size='1
     
     print(f"Creating {size_name} presentation")
     print(f"Slide dimensions: {slide_width}x{slide_height} pixels")
-    print(f"Content dimensions: {content_width}x{content_height} pixels")
     
     for slide_info in slides_data:
         slide = prs.slides.add_slide(prs.slide_layouts[6])
@@ -600,4 +659,4 @@ def create_pptx_from_json(json_path, output_path=None, debug=False, base_size='1
         print(f"Error saving presentation: {e}")
 
 if __name__ == "__main__":
-    create_pptx_from_json('slides_data.json', 'output_dynamic.pptx', debug=True, padding=50)
+    create_pptx_from_json('slides_data.json', 'output_chart.pptx', debug=True, padding=50)
