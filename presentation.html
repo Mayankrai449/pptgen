@@ -1,0 +1,371 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Understanding Short Selling in Finance</title>
+<style>
+body {
+  background: #f4f6fb;
+  font-family: 'Segoe UI', Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+}
+.presentation-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100vw;
+  min-height: 100vh;
+  background: #f4f6fb;
+}
+.slide {
+  width: 900px;
+  height: 550px;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 6px 32px 0 rgba(40,54,111,0.16);
+  margin: 36px 0;
+  padding: 36px 48px;
+  display: flex;
+  flex-direction: row;
+  overflow: hidden;
+  box-sizing: border-box;
+  position: relative;
+}
+.slide .content {
+  flex: 2;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.slide h1, .slide h2, .slide h3 {
+  color: #26345c;
+  margin-top: 0;
+  margin-bottom: 16px;
+  font-weight: 700;
+}
+.slide h1 { font-size: 2.2rem; }
+.slide h2 { font-size: 1.5rem; }
+.slide h3 { font-size: 1.2rem; }
+.slide p, .slide li {
+  color: #384276;
+  font-size: 1.07rem;
+  line-height: 1.5;
+  margin-bottom: 12px;
+}
+.slide ul {
+  padding-left: 20px;
+  margin: 0 0 16px 0;
+}
+.slide img, .slide .chart {
+  flex: 1;
+  max-width: 320px;
+  max-height: 420px;
+  margin-left: 36px;
+  border-radius: 10px;
+  background: #e9ecf6;
+  object-fit: contain;
+  box-shadow: 0 2px 8px 0 rgba(40,54,111,0.09);
+  align-self: center;
+}
+.slide .chart {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 320px;
+  padding: 16px;
+}
+.slide table {
+  border-collapse: collapse;
+  width: 100%;
+  margin-bottom: 12px;
+  background: #f8f9fc;
+}
+.slide th, .slide td {
+  border: 1px solid #d2d7e5;
+  padding: 8px 10px;
+  text-align: left;
+  font-size: 1rem;
+}
+.slide th {
+  background: #e5eaf7;
+  color: #26345c;
+  font-weight: 600;
+}
+.slide .info-box {
+  background: #e9ecf6;
+  border-left: 5px solid #587ef4;
+  padding: 12px 18px;
+  border-radius: 8px;
+  margin-bottom: 18px;
+  color: #26345c;
+  font-size: 1rem;
+}
+@media (max-width: 1024px) {
+  .slide, .presentation-container { width: 98vw; }
+  .slide { height: auto; flex-direction: column; padding: 24px 10vw; }
+  .slide img, .slide .chart { margin: 24px 0 0 0; max-width: 90vw; }
+}
+</style>
+</head>
+<body>
+<div class="presentation-container">
+
+<!-- Slide 1: Title & Introduction -->
+<div class="slide" style="align-items: center;">
+  <div class="content">
+    <h1>Understanding Short Selling in Finance</h1>
+    <div class="info-box">
+      <strong>Short selling</strong> is a fundamental concept in modern financial markets, allowing investors to profit from price declines and manage risks.
+    </div>
+    <ul>
+      <li>Profiting from asset price drops</li>
+      <li>Key in hedging and speculation strategies</li>
+      <li>Widely used in stocks, futures, and currencies</li>
+    </ul>
+  </div>
+  <img src="https://images.unsplash.com/photo-1556740772-1a741367b93e?auto=format&fit=crop&w=400&q=80" alt="Financial markets graphic" />
+</div>
+
+<!-- Slide 2: What Does "Short" Mean? -->
+<div class="slide">
+  <div class="content">
+    <h2>What Does "Short" Mean?</h2>
+    <p>
+      <strong>Being short</strong> in an asset means you will profit if the asset's market value <b>falls</b>. This is the opposite of a "long" position, where profits are made if the price <b>rises</b>.
+    </p>
+    <ul>
+      <li><b>Short Seller:</b> Investor who holds a short position</li>
+      <li><b>Long Position:</b> Investor profits from rising prices</li>
+    </ul>
+  </div>
+  <img src="https://cdn.pixabay.com/photo/2017/01/10/19/05/stock-1966069_960_720.jpg" alt="Stock chart downtrend" />
+</div>
+
+<!-- Slide 3: Mechanisms to Achieve a Short Position -->
+<div class="slide">
+  <div class="content">
+    <h2>How Is a Short Position Created?</h2>
+    <ul>
+      <li><b>Physical Short Selling:</b> Borrowing and selling the asset, then repurchasing it later.</li>
+      <li><b>Derivatives:</b> Using futures, forwards, or options contracts to bet on price drops.</li>
+      <li><b>Swaps:</b> e.g., Contract for Difference (CFD) to receive/pay the difference in asset price changes.</li>
+    </ul>
+    <div class="info-box">
+      <strong>Key Point:</strong> All methods rely on the ability to sell first and buy back later at a lower price.
+    </div>
+  </div>
+  <img src="https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=400&q=80" alt="Derivatives financial instruments" />
+</div>
+
+<!-- Slide 4: Short Selling Process Visualized -->
+<div class="slide">
+  <div class="content">
+    <h2>Short Selling: Step-by-Step</h2>
+    <ol>
+      <li><b>Borrow</b> the asset (e.g., shares) from a lender.</li>
+      <li><b>Sell</b> the borrowed asset in the open market.</li>
+      <li><b>Wait</b> for price to decrease.</li>
+      <li><b>Buy back</b> the asset at the lower price.</li>
+      <li><b>Return</b> the asset to the lender and keep the difference (minus fees).</li>
+    </ol>
+  </div>
+  <img src="https://i.imgur.com/0VpTb4z.png" alt="Short selling workflow illustration" />
+</div>
+
+<!-- Slide 5: Profit & Loss Potential in Short Selling -->
+<div class="slide">
+  <div class="content">
+    <h2>Profit & Loss Potential</h2>
+    <div class="info-box">
+      <b>Unlimited Losses:</b> If asset price rises, short seller must buy back at a higher price.<br>
+      <b>Limited Profit:</b> Maximum gain is if asset price falls to zero.
+    </div>
+    <ul>
+      <li>Short sellers pay borrowing fees and must reimburse dividends/cash returns.</li>
+      <li>Margin is posted as collateral to cover potential losses.</li>
+    </ul>
+  </div>
+  <div class="chart">
+    <canvas id="shortPLChart" width="280" height="260" aria-label="Short Selling Profit/Loss Chart"></canvas>
+  </div>
+</div>
+
+<!-- Slide 6: Margin & Risk Management -->
+<div class="slide">
+  <div class="content">
+    <h2>Margin & Risk Management</h2>
+    <ul>
+      <li>Short sellers must post <b>margin</b> with brokers/counterparties.</li>
+      <li>Additional margin is required if losses accrue.</li>
+      <li>Failure to post margin may result in forced closing of the position.</li>
+    </ul>
+    <div class="info-box">
+      <b>Risk:</b> Short selling exposes investors to potentially unlimited losses.
+    </div>
+  </div>
+  <img src="https://cdn.pixabay.com/photo/2015/07/17/22/43/student-849822_960_720.jpg" alt="Risk management in finance" />
+</div>
+
+<!-- Slide 7: Short Selling in Practice -->
+<div class="slide">
+  <div class="content">
+    <h2>Short Selling in Practice</h2>
+    <table>
+      <tr>
+        <th>Market</th>
+        <th>Common?</th>
+        <th>Reason</th>
+      </tr>
+      <tr>
+        <td>Stocks</td>
+        <td>Yes</td>
+        <td>High liquidity and fungibility</td>
+      </tr>
+      <tr>
+        <td>Futures</td>
+        <td>Yes</td>
+        <td>Standardized contracts allow ease of shorting</td>
+      </tr>
+      <tr>
+        <td>Currency</td>
+        <td>Yes</td>
+        <td>Highly liquid and tradable</td>
+      </tr>
+      <tr>
+        <td>Real Estate</td>
+        <td>No</td>
+        <td>Assets are not fungible or liquid</td>
+      </tr>
+    </table>
+    <ul>
+      <li>Requires confidence in ability to repurchase at market price</li>
+    </ul>
+  </div>
+  <img src="https://images.unsplash.com/photo-1464983953574-0892a716854b?auto=format&fit=crop&w=400&q=80" alt="Markets and trading" />
+</div>
+
+<!-- Slide 8: Objectives of Short Selling -->
+<div class="slide">
+  <div class="content">
+    <h2>Objectives of Short Selling</h2>
+    <ul>
+      <li><b>Speculation:</b> Profit from perceived overvaluation</li>
+      <li><b>Hedging:</b> Offset risks in long positions or portfolios</li>
+    </ul>
+    <div class="info-box" style="background:#ffeeb5; border-left:5px solid #d2ae38;">
+      <b>Research:</b> Banning short selling is generally ineffective and can harm market efficiency, though it remains controversial.
+    </div>
+  </div>
+  <img src="https://cdn.pixabay.com/photo/2016/11/19/13/05/analysis-1836974_960_720.jpg" alt="Speculation and hedging" />
+</div>
+
+<!-- Slide 9: Physical Shorting & Fungibility -->
+<div class="slide">
+  <div class="content">
+    <h2>Physical Shorting: The Role of Fungibility</h2>
+    <ul>
+      <li>Borrowed securities can be returned as any equivalent item, not the exact same one</li>
+      <li>Like borrowing $10: any $10 bill can be returned</li>
+      <li>Enables efficient short selling in fungible assets</li>
+    </ul>
+    <div class="info-box">
+      <strong>Potential Loss:</strong> Since prices can rise indefinitely, losses are theoretically unlimited.
+    </div>
+  </div>
+  <img src="https://images.unsplash.com/photo-1523289333742-be1143f6b766?auto=format&fit=crop&w=400&q=80" alt="Fungibility money bills" />
+</div>
+
+<!-- Slide 10: Worked Example – Profitable Short Sale -->
+<div class="slide">
+  <div class="content">
+    <h2>Worked Example: Profitable Short Sale</h2>
+    <ul>
+      <li>ACME Inc. shares trade at $10 each.</li>
+      <li>Short seller borrows & sells 100 shares ($1,000).</li>
+      <li>Price drops to $8 per share.</li>
+      <li>Buys back 100 shares for $800.</li>
+      <li>Returns shares; profit is $200 (minus fees).</li>
+    </ul>
+    <div class="info-box" style="background:#d8f2e0; border-left:5px solid #3ebd67;">
+      <b>Outcome:</b> Short seller profits from price decline.
+    </div>
+  </div>
+  <div class="chart">
+    <canvas id="shortExampleChart" width="280" height="260" aria-label="Short Sale Example Chart"></canvas>
+  </div>
+</div>
+
+</div>
+<script>
+// Slide 5: Short Selling Profit/Loss Chart
+const shortPLChartData = {
+  labels: [-2, 0, 5, 10, 15, 20],
+  price: [12, 10, 5, 0, -5, -10],
+  profit: [-2, 0, 5, 10, 15, 20]
+};
+const ctx1 = document.getElementById('shortPLChart').getContext('2d');
+ctx1.clearRect(0,0,280,260);
+ctx1.font = "13px Segoe UI";
+ctx1.fillStyle="#26345c";
+ctx1.fillText("Profit/Loss vs. ACME Stock Price", 28, 20);
+// Draw axes
+ctx1.strokeStyle = "#c0c7e0";
+ctx1.beginPath();
+ctx1.moveTo(40, 40); ctx1.lineTo(40, 220); ctx1.lineTo(250, 220); ctx1.stroke();
+// X-axis labels
+ctx1.font="11px Segoe UI";
+["$0", "$10", "$20"].forEach((txt,i)=>ctx1.fillText(txt, 40+90*i, 238));
+// Y-axis labels
+["-$10", "0", "+$10", "+$20"].forEach((txt,i)=>ctx1.fillText(txt, 2, 220-60*i));
+// Draw P/L line
+ctx1.strokeStyle="#587ef4";
+ctx1.lineWidth=3;
+ctx1.beginPath();
+ctx1.moveTo(40, 220);
+ctx1.lineTo(130, 130);
+ctx1.lineTo(220, 40);
+ctx1.stroke();
+// Markers
+ctx1.fillStyle="#3ebd67";
+ctx1.beginPath(); ctx1.arc(130,130,5,0,2*Math.PI); ctx1.fill();
+ctx1.fillStyle="#e74d3c";
+ctx1.beginPath(); ctx1.arc(220,40,5,0,2*Math.PI); ctx1.fill();
+ctx1.lineWidth=1;
+
+// Slide 10: Short Sale Example Chart
+const exampleSellPrice = 10;
+const exampleBuyPrice = 8;
+const ctx2 = document.getElementById('shortExampleChart').getContext('2d');
+ctx2.clearRect(0,0,280,260);
+ctx2.font = "13px Segoe UI";
+ctx2.fillStyle="#26345c";
+ctx2.fillText("Short Sale: $ Profit", 60, 20);
+// Y-axis
+ctx2.strokeStyle="#c0c7e0";
+ctx2.beginPath();
+ctx2.moveTo(60, 40); ctx2.lineTo(60, 220); ctx2.lineTo(230, 220); ctx2.stroke();
+// Draw sell point
+ctx2.fillStyle="#587ef4";
+ctx2.beginPath(); ctx2.arc(100, 105, 7, 0, 2*Math.PI); ctx2.fill();
+ctx2.font="11px Segoe UI";
+ctx2.fillText("Sell $1,000", 110, 100);
+// Draw buy point
+ctx2.fillStyle="#3ebd67";
+ctx2.beginPath(); ctx2.arc(170, 180, 7, 0, 2*Math.PI); ctx2.fill();
+ctx2.fillText("Buy $800", 180, 175);
+// Arrow
+ctx2.strokeStyle="#3ebd67";
+ctx2.lineWidth=3;
+ctx2.beginPath();
+ctx2.moveTo(107, 105); ctx2.lineTo(163, 180); ctx2.stroke();
+ctx2.lineWidth=1;
+// Profit label
+ctx2.fillStyle="#26345c";
+ctx2.font="bold 13px Segoe UI";
+ctx2.fillText("Profit: $200", 110, 210);
+</script>
+</body>
+</html>
+```
