@@ -1,9 +1,9 @@
 import json
 import base64
 from pptx import Presentation
-from pptx.util import Inches, Pt, Emu
+from pptx.util import Pt
 from pptx.dml.color import RGBColor
-from pptx.enum.shapes import MSO_SHAPE, MSO_CONNECTOR
+from pptx.enum.shapes import MSO_SHAPE
 from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
 from pptx.enum.dml import MSO_LINE, MSO_COLOR_TYPE
 import requests
@@ -21,42 +21,21 @@ def safe_int(value, default=0):
         return default
 
 def safe_float(value, default=0.0):
+    """Safely convert value to float with better error handling"""
     try:
-        return float(value)
+        if isinstance(value, str):
+            # Remove units and extract numeric value
+            value = re.sub(r'[^\d.-]', '', value)
+        return float(value) if value else default
     except (ValueError, TypeError):
         return default
 
-def parse_color(color_str):
-    if not color_str or color_str in ['transparent', 'rgba(0, 0, 0, 0)', 'none']:
-        return None
-    
-    if color_str.startswith('rgb'):
-        parts = re.findall(r'\d+', color_str)
-        if len(parts) >= 3:
-            return RGBColor(int(parts[0]), int(parts[1]), int(parts[2]))
-    
-    elif color_str.startswith('#'):
-        color_str = color_str.lstrip('#')
-        if len(color_str) == 6:
-            return RGBColor(int(color_str[0:2], 16), int(color_str[2:4], 16), int(color_str[4:6], 16))
-    
-    named_colors = {
-        'black': RGBColor(0, 0, 0),
-        'white': RGBColor(255, 255, 255),
-        'red': RGBColor(255, 0, 0),
-        'green': RGBColor(0, 128, 0),
-        'blue': RGBColor(0, 0, 255),
-        'yellow': RGBColor(255, 255, 0),
-        'gray': RGBColor(128, 128, 128),
-        'grey': RGBColor(128, 128, 128)
-    }
-    
-    return named_colors.get(color_str.lower())
-
 def pixels_to_emu(pixels):
-    return int(pixels * 9525)
+    """Convert pixels to EMU with high precision"""
+    return int(round(pixels * 9525))
 
 def px_to_pt(px):
+    """Convert pixels to points"""
     return px * 0.75
 
 def get_font_size_pt(font_size_px):
@@ -65,6 +44,7 @@ def get_font_size_pt(font_size_px):
     return max(6, int(px_to_pt(font_size_px)))
 
 def parse_border_radius(radius_str, shape_width_px, shape_height_px):
+    """Parse border radius from CSS string"""
     if not radius_str or radius_str == '0px':
         return 0
     try:
@@ -86,6 +66,90 @@ def parse_border_radius(radius_str, shape_width_px, shape_height_px):
     except (ValueError, TypeError):
         return 0
 
+def parse_color(color_str):
+    """Enhanced color parsing with better RGB extraction"""
+    if not color_str or color_str in ['transparent', 'rgba(0, 0, 0, 0)', 'none', 'initial', 'inherit']:
+        return None
+    
+    # Handle RGB/RGBA
+    if color_str.startswith(('rgb', 'rgba')):
+        parts = re.findall(r'[\d.]+', color_str)
+        if len(parts) >= 3:
+            r = min(255, max(0, int(float(parts[0]))))
+            g = min(255, max(0, int(float(parts[1]))))
+            b = min(255, max(0, int(float(parts[2]))))
+            return RGBColor(r, g, b)
+    
+    # Handle hex colors
+    elif color_str.startswith('#'):
+        color_str = color_str.lstrip('#')
+        if len(color_str) == 6:
+            try:
+                return RGBColor(int(color_str[0:2], 16), int(color_str[2:4], 16), int(color_str[4:6], 16))
+            except ValueError:
+                pass
+        elif len(color_str) == 3:
+            try:
+                return RGBColor(int(color_str[0]*2, 16), int(color_str[1]*2, 16), int(color_str[2]*2, 16))
+            except ValueError:
+                pass
+    
+    # Named colors
+    named_colors = {
+        'black': RGBColor(0, 0, 0), 'white': RGBColor(255, 255, 255),
+        'red': RGBColor(255, 0, 0), 'green': RGBColor(0, 128, 0),
+        'blue': RGBColor(0, 0, 255), 'yellow': RGBColor(255, 255, 0),
+        'gray': RGBColor(128, 128, 128), 'grey': RGBColor(128, 128, 128),
+        'silver': RGBColor(192, 192, 192), 'maroon': RGBColor(128, 0, 0),
+        'olive': RGBColor(128, 128, 0), 'lime': RGBColor(0, 255, 0),
+        'aqua': RGBColor(0, 255, 255), 'teal': RGBColor(0, 128, 128),
+        'navy': RGBColor(0, 0, 128), 'fuchsia': RGBColor(255, 0, 255),
+        'purple': RGBColor(128, 0, 128)
+    }
+    
+    return named_colors.get(color_str.lower())
+
+def is_uniform_border(styles):
+    widths = [safe_float(styles.get(f'border{side}Width', '0px')) for side in ['Top', 'Right', 'Bottom', 'Left']]
+    styles_list = [styles.get(f'border{side}Style', 'none') for side in ['Top', 'Right', 'Bottom', 'Left']]
+    colors = [styles.get(f'border{side}Color', '') for side in ['Top', 'Right', 'Bottom', 'Left']]
+    return len(set(widths)) == 1 and len(set(styles_list)) == 1 and len(set(colors)) == 1 and widths[0] > 0
+
+def has_any_border(styles):
+    """Enhanced border detection"""
+    for side in ['Top', 'Right', 'Bottom', 'Left']:
+        width_key = f'border{side}Width'
+        style_key = f'border{side}Style'
+        color_key = f'border{side}Color'
+        
+        width = safe_float(styles.get(width_key, '0px'))
+        style = styles.get(style_key, 'none')
+        color = parse_color(styles.get(color_key, ''))
+        
+        if width > 0 and style not in ['none', 'hidden'] and color is not None:
+            return True
+    return False
+
+def get_border_info(styles):
+    """Enhanced border information extraction"""
+    border_info = {}
+    for side in ['Top', 'Right', 'Bottom', 'Left']:
+        width_key = f'border{side}Width'
+        style_key = f'border{side}Style'
+        color_key = f'border{side}Color'
+        
+        width = safe_float(styles.get(width_key, '0px'))
+        style = styles.get(style_key, 'none')
+        color = parse_color(styles.get(color_key, ''))
+        
+        border_info[side.lower()] = {
+            'width': width,
+            'style': style,
+            'color': color,
+            'has_border': width > 0 and style not in ['none', 'hidden'] and color is not None
+        }
+    return border_info
+
 def make_rounded_image(input_path, output_path, radius):
     im = Image.open(input_path).convert("RGBA")
     mask = Image.new("L", im.size, 0)
@@ -94,52 +158,16 @@ def make_rounded_image(input_path, output_path, radius):
     im.putalpha(mask)
     im.save(output_path, "PNG")
 
-def is_uniform_border(styles):
-    widths = [safe_float(styles.get(f'border{side}Width', '0px').replace('px', '')) for side in ['Top', 'Right', 'Bottom', 'Left']]
-    styles_list = [styles.get(f'border{side}Style', 'none') for side in ['Top', 'Right', 'Bottom', 'Left']]
-    colors = [styles.get(f'border{side}Color', '') for side in ['Top', 'Right', 'Bottom', 'Left']]
-    return len(set(widths)) == 1 and len(set(styles_list)) == 1 and len(set(colors)) == 1 and widths[0] > 0
-
-def has_any_border(styles):
-    """Check if element has any border on any side"""
-    for side in ['Top', 'Right', 'Bottom', 'Left']:
-        width = safe_float(styles.get(f'border{side}Width', '0px').replace('px', ''))
-        style = styles.get(f'border{side}Style', 'none')
-        if width > 0 and style != 'none':
-            return True
-    return False
-
-def get_border_info(styles):
-    """Get detailed border information for each side"""
-    border_info = {}
-    for side in ['Top', 'Right', 'Bottom', 'Left']:
-        width = safe_float(styles.get(f'border{side}Width', '0px').replace('px', ''))
-        style = styles.get(f'border{side}Style', 'none')
-        color = parse_color(styles.get(f'border{side}Color', ''))
-        border_info[side.lower()] = {
-            'width': width,
-            'style': style,
-            'color': color,
-            'has_border': width > 0 and style != 'none' and color is not None
-        }
-    return border_info
-
-def create_border_shape(slide, x, y, width, height, border_info, border_radius=0):
-    """Create individual border lines for non-uniform borders"""
+def create_precise_border_shapes(slide, x, y, width, height, border_info, border_radius=0):
+    """Create precise border shapes with accurate positioning"""
     shapes_created = []
-    
-    # Convert border radius to EMU for calculations
-    radius_emu = pixels_to_emu(border_radius) if border_radius > 0 else 0
-    
+    # Always check and draw all four borders if needed
     for side, info in border_info.items():
         if not info['has_border']:
             continue
-            
         border_width = info['width']
         border_color = info['color']
-        border_style = info['style']
-        
-        # Calculate line positions and dimensions
+        # Calculate precise line positions
         if side == 'top':
             line_x = x
             line_y = y
@@ -160,41 +188,25 @@ def create_border_shape(slide, x, y, width, height, border_info, border_radius=0
             line_y = y
             line_width = border_width
             line_height = height
-        
         try:
-            # Determine shape type
-            if border_radius > 0:
-                shape_type = MSO_SHAPE.ROUNDED_RECTANGLE
-            else:
-                shape_type = MSO_SHAPE.RECTANGLE
-                
+            # Always use rectangle for side borders, rounded only for full shape
+            shape_type = MSO_SHAPE.RECTANGLE
             border_shape = slide.shapes.add_shape(
                 shape_type,
                 pixels_to_emu(line_x), pixels_to_emu(line_y),
                 pixels_to_emu(line_width), pixels_to_emu(line_height)
             )
-            
-            if border_radius > 0:
-                min_dim = min(line_width, line_height)
-                adj_radius = min(border_radius, min_dim / 2)
-                border_shape.adjustments[0] = adj_radius / min_dim
-            
-            # Fill the border shape with the border color
             border_shape.fill.solid()
             border_shape.fill.fore_color.rgb = border_color
-            
-            # Remove outline
             border_shape.line.fill.background()
             border_shape.shadow.inherit = False
-            
             shapes_created.append(border_shape)
-            
         except Exception as e:
             print(f"Error creating {side} border: {e}")
-    
     return shapes_created
 
 def add_bg_shape(slide, styles, x, y, width, height):
+    """Enhanced background shape creation with precise positioning"""
     bg_color = parse_color(styles.get('backgroundColor'))
     border_radius_str = styles.get('borderRadius', '0px')
     border_radius = parse_border_radius(border_radius_str, width, height)
@@ -203,9 +215,8 @@ def add_bg_shape(slide, styles, x, y, width, height):
     has_shadow = box_shadow != 'none'
     has_uniform_border = is_uniform_border(styles)
     has_any_border_sides = has_any_border(styles)
-    
     shapes_created = []
-    
+    # Create main background shape
     if bg_color or has_uniform_border or has_radius or has_shadow:
         shape_type = MSO_SHAPE.ROUNDED_RECTANGLE if has_radius else MSO_SHAPE.RECTANGLE
         try:
@@ -221,35 +232,36 @@ def add_bg_shape(slide, styles, x, y, width, height):
                 bg_shape.fill.fore_color.rgb = bg_color
             else:
                 bg_shape.fill.background()
-            
             bg_shape.shadow.inherit = False
-            
+            # Handle uniform borders
             if has_uniform_border:
-                border_width = safe_float(styles.get('borderTopWidth', '1px').replace('px', ''))
+                border_width = safe_float(styles.get('borderTopWidth', '1px'))
                 border_color = parse_color(styles.get('borderTopColor', 'black'))
                 border_style = styles.get('borderTopStyle', 'solid')
-                bg_shape.line.width = Pt(border_width)
-                bg_shape.line.color.rgb = border_color
-                if border_style == 'dashed':
-                    bg_shape.line.dash_style = MSO_LINE.DASH
-                elif border_style == 'dotted':
-                    bg_shape.line.dash_style = MSO_LINE.ROUND_DOT
+                if border_color:
+                    bg_shape.line.width = Pt(max(0.5, border_width))
+                    bg_shape.line.color.rgb = border_color
+                    if border_style == 'dashed':
+                        bg_shape.line.dash_style = MSO_LINE.DASH
+                    elif border_style == 'dotted':
+                        bg_shape.line.dash_style = MSO_LINE.ROUND_DOT
+                else:
+                    bg_shape.line.fill.background()
             else:
                 bg_shape.line.fill.background()
-            
             if has_shadow:
                 apply_shadow(bg_shape, box_shadow)
-                
             shapes_created.append(bg_shape)
         except Exception as e:
             print(f"Error adding bg shape: {e}")
-    
-    # Handle non-uniform borders (like border-left only)
+    # Always handle non-uniform borders for all sides
     if has_any_border_sides and not has_uniform_border:
         border_info = get_border_info(styles)
-        border_shapes = create_border_shape(slide, x, y, width, height, border_info, border_radius * min(width, height) if has_radius else 0)
+        border_shapes = create_precise_border_shapes(
+            slide, x, y, width, height, border_info,
+            border_radius * min(width, height) if has_radius else 0
+        )
         shapes_created.extend(border_shapes)
-    
     return shapes_created
 
 def apply_shadow(shape, box_shadow_str):
@@ -258,10 +270,10 @@ def apply_shadow(shape, box_shadow_str):
     parts = box_shadow_str.split()
     if len(parts) < 3:
         return
-    offset_x_px = safe_float(parts[0].replace('px', ''))
-    offset_y_px = safe_float(parts[1].replace('px', ''))
-    blur_px = safe_float(parts[2].replace('px', ''))
-    spread_px = safe_float(parts[3].replace('px', '')) if len(parts) > 3 else 0
+    offset_x_px = safe_float(parts[0])
+    offset_y_px = safe_float(parts[1])
+    blur_px = safe_float(parts[2])
+    spread_px = safe_float(parts[3]) if len(parts) > 3 else 0
     color_str = parts[4] if len(parts) > 4 else parts[3]
     if offset_x_px == 0 and offset_y_px == 0 and blur_px == 0 and spread_px == 0:
         return
@@ -543,8 +555,8 @@ def add_list_element(slide, element, slide_width, slide_height, parent_has_shado
     rect = list_info.get('rect', {})
     x = safe_int(rect.get('x', 0))
     y = safe_int(rect.get('y', 0))
-    width = safe_int(rect.get('width', 100))
-    height = safe_int(rect.get('height', 100))
+    width = safe_int(rect.get('width', element.get('width', 100)))
+    height = safe_int(rect.get('height', element.get('height', 100)))
     styles = element.get('styles', {})
     box_shadow = styles.get('boxShadow', 'none')
     has_shadow = box_shadow != 'none' and not parent_has_shadow
@@ -755,12 +767,17 @@ def add_image_element(slide, element, slide_width, slide_height, parent_has_shad
     styles = element.get('styles', {})
     if not img_src:
         return
-    x = safe_int(element.get('x', 0))
-    y = safe_int(element.get('y', 0))
-    width = safe_int(element.get('width', 100))
-    height = safe_int(element.get('height', 100))
+    # Use precise positioning from extraction
+    x = element.get('x', 0)
+    y = element.get('y', 0)
+    width = max(1, element.get('width', 100))
+    height = max(1, element.get('height', 100))
+    
+    # Ensure coordinates are within slide bounds
+    x = max(0, min(x, slide_width - width))
+    y = max(0, min(y, slide_height - height))
+    
     natural_width = media_info.get('naturalWidth', width)
-    natural_height = media_info.get('naturalHeight', height)
     border_radius_str = styles.get('borderRadius', '0px')
     radius_ratio = parse_border_radius(border_radius_str, width, height)
     radius_display = radius_ratio * min(width, height)
@@ -768,10 +785,11 @@ def add_image_element(slide, element, slide_width, slide_height, parent_has_shad
     box_shadow = styles.get('boxShadow', 'none')
     has_shadow = box_shadow != 'none' and not parent_has_shadow
     has_border = is_uniform_border(styles)
+    
     try:
         temp_path = None
         if img_src.startswith('data:'):
-            header, data = img_src.split(',', 1)
+            _, data = img_src.split(',', 1)
             img_data = base64.b64decode(data)
             temp_path = 'temp_image.png'
             with open(temp_path, 'wb') as f:
@@ -791,8 +809,10 @@ def add_image_element(slide, element, slide_width, slide_height, parent_has_shad
             else:
                 print(f"Image file not found: {img_src}")
                 return
+        
         with Image.open(temp_path) as img:
             img.verify()
+        
         image_to_add = temp_path
         if has_radius:
             scale_x = natural_width / width if width > 0 else 1
@@ -800,12 +820,16 @@ def add_image_element(slide, element, slide_width, slide_height, parent_has_shad
             temp_rounded = 'temp_rounded.png'
             make_rounded_image(temp_path, temp_rounded, radius_natural)
             image_to_add = temp_rounded
+        
+        # Add image with precise positioning
         picture = slide.shapes.add_picture(
             image_to_add,
             pixels_to_emu(x), pixels_to_emu(y),
             pixels_to_emu(width), pixels_to_emu(height)
         )
         picture.shadow.inherit = False
+        
+        # Handle borders and shadows
         if has_border or has_radius or has_shadow:
             shape_type = MSO_SHAPE.ROUNDED_RECTANGLE if has_radius else MSO_SHAPE.RECTANGLE
             border_shape = slide.shapes.add_shape(
@@ -820,15 +844,16 @@ def add_image_element(slide, element, slide_width, slide_height, parent_has_shad
             if has_shadow:
                 apply_shadow(border_shape, box_shadow)
             if has_border:
-                border_width = safe_float(styles.get('borderTopWidth', '0px').replace('px', ''))
+                border_width = safe_float(styles.get('borderTopWidth', '0px'))
                 border_color = parse_color(styles.get('borderTopColor'))
-                border_style = styles.get('borderTopStyle', 'solid')
-                border_shape.line.width = Pt(border_width)
-                border_shape.line.color.rgb = border_color
-                if border_style == 'dashed':
-                    border_shape.line.dash_style = MSO_LINE.DASH
-                elif border_style == 'dotted':
-                    border_shape.line.dash_style = MSO_LINE.ROUND_DOT
+                if border_color:
+                    border_shape.line.width = Pt(border_width)
+                    border_shape.line.color.rgb = border_color
+                    border_style = styles.get('borderTopStyle', 'solid')
+                    if border_style == 'dashed':
+                        border_shape.line.dash_style = MSO_LINE.DASH
+                    elif border_style == 'dotted':
+                        border_shape.line.dash_style = MSO_LINE.ROUND_DOT
             else:
                 border_shape.line.fill.background()
             # Move border shape behind picture
@@ -840,6 +865,8 @@ def add_image_element(slide, element, slide_width, slide_height, parent_has_shad
             parent.insert(idx, sp)
         elif has_shadow:
             apply_shadow(picture, box_shadow)
+        
+        # Clean up temporary files
         if image_to_add != temp_path and os.path.exists(image_to_add):
             os.remove(image_to_add)
         if temp_path != img_src and os.path.exists(temp_path):
@@ -848,13 +875,21 @@ def add_image_element(slide, element, slide_width, slide_height, parent_has_shad
         print(f"Failed to add image: {e}")
 
 def add_text_element(slide, element, slide_width, slide_height, parent_has_shadow=False):
+    """Enhanced text element creation with precise positioning"""
     text = element.get('text', '').strip()
     if not text:
         return
-    x = safe_int(element.get('x', 0))
-    y = safe_int(element.get('y', 0))
-    width = safe_int(element.get('width', 100))
-    height = safe_int(element.get('height', 100))
+    
+    # Use precise positioning
+    x = element.get('x', 0)
+    y = element.get('y', 0)
+    width = max(1, element.get('width', 100))
+    height = max(1, element.get('height', 100))
+    
+    # Ensure coordinates are within slide bounds
+    x = max(0, min(x, slide_width - width))
+    y = max(0, min(y, slide_height - height))
+    
     styles = element.get('styles', {})
     box_shadow = styles.get('boxShadow', 'none')
     has_shadow = box_shadow != 'none' and not parent_has_shadow
@@ -864,43 +899,72 @@ def add_text_element(slide, element, slide_width, slide_height, parent_has_shado
     has_radius = border_radius > 0
     has_border = is_uniform_border(styles)
     has_any_border_sides = has_any_border(styles)
+    
     try:
+        # Add background/border shapes first
         if bg_color or has_border or has_any_border_sides or has_radius or has_shadow:
             add_bg_shape(slide, styles, x, y, width, height)
+        
+        # Create text box with precise positioning
         textbox = slide.shapes.add_textbox(
             pixels_to_emu(x), pixels_to_emu(y),
             pixels_to_emu(width), pixels_to_emu(height)
         )
+        
         text_frame = textbox.text_frame
         text_frame.word_wrap = True
-        text_frame.vertical_anchor = MSO_ANCHOR.MIDDLE
-        text_frame.margin_left = pixels_to_emu(safe_float(styles.get('paddingLeft', '0px').replace('px', '')))
-        text_frame.margin_right = pixels_to_emu(safe_float(styles.get('paddingRight', '0px').replace('px', '')))
-        text_frame.margin_top = pixels_to_emu(safe_float(styles.get('paddingTop', '0px').replace('px', '')))
-        text_frame.margin_bottom = pixels_to_emu(safe_float(styles.get('paddingBottom', '0px').replace('px', '')))
+        
+        # Set vertical alignment based on flex properties or default to middle for short text
+        display = styles.get('display', 'block')
+        align_items = styles.get('alignItems', 'stretch')
+        justify_content = styles.get('justifyContent', 'flex-start')
+        
+        if display == 'flex' and align_items == 'center':
+            text_frame.vertical_anchor = MSO_ANCHOR.MIDDLE
+        elif height < 50:  # For small elements like company names
+            text_frame.vertical_anchor = MSO_ANCHOR.MIDDLE
+        else:
+            text_frame.vertical_anchor = MSO_ANCHOR.TOP
+        
+        # Apply precise margins
+        text_frame.margin_left = pixels_to_emu(safe_float(styles.get('paddingLeft', '0px')))
+        text_frame.margin_right = pixels_to_emu(safe_float(styles.get('paddingRight', '0px')))
+        text_frame.margin_top = pixels_to_emu(safe_float(styles.get('paddingTop', '0px')))
+        text_frame.margin_bottom = pixels_to_emu(safe_float(styles.get('paddingBottom', '0px')))
+        
+        # Remove textbox styling
         textbox.fill.background()
         textbox.line.fill.background()
         textbox.shadow.inherit = False
+        
+        # Clear and set text
         text_frame.clear()
-        p = text_frame.paragraphs[0]  # Use the first paragraph instead of adding new one
+        p = text_frame.paragraphs[0]
         run = p.add_run()
         run.text = text
+        
+        # Apply text formatting
         font = run.font
-        font_size_px = safe_float(styles.get('fontSize', '12').replace('px', ''))
+        font_size_px = safe_float(styles.get('fontSize', '12'))
         font.name = styles.get('fontFamily', 'Arial').split(',')[0].strip('"\'')
-        font.size = Pt(get_font_size_pt(font_size_px))
+        font.size = Pt(max(6, get_font_size_pt(font_size_px)))
         font.bold = styles.get('fontWeight', '400') in ['bold', '700', '800', '900']
         font.italic = styles.get('fontStyle') == 'italic'
+        
+        # Apply text color
         color = parse_color(styles.get('color', 'black'))
         if color:
             font.color.rgb = color
+        
+        # Apply text alignment based on CSS text-align and flex properties
         text_align = styles.get('textAlign', 'left')
-        if text_align == 'center':
+        if text_align == 'center' or (display == 'flex' and justify_content == 'center'):
             p.alignment = PP_ALIGN.CENTER
-        elif text_align == 'right':
+        elif text_align == 'right' or (display == 'flex' and justify_content == 'flex-end'):
             p.alignment = PP_ALIGN.RIGHT
         else:
             p.alignment = PP_ALIGN.LEFT
+            
     except Exception as e:
         print(f"Failed to add text: {e}")
 
@@ -928,40 +992,142 @@ def get_parent(element, all_elements):
     return None
 
 def create_pptx_from_json(json_path, output_path=None):
+    """Enhanced PowerPoint generation with precise positioning"""
     try:
         with open(json_path, 'r', encoding='utf-8') as f:
             slides_data = json.load(f)
     except Exception as e:
         print(f"Error reading JSON file: {e}")
         return
+    
     if not slides_data:
         print("No slides found in JSON")
         return
+    
+    # Get slide dimensions from first slide
     first_slide = slides_data[0]
     slide_width = safe_int(first_slide.get('slideWidth', 1920))
     slide_height = safe_int(first_slide.get('slideHeight', 1080))
+    
+    # Create presentation with precise dimensions
     prs = Presentation()
     prs.slide_width = pixels_to_emu(slide_width)
     prs.slide_height = pixels_to_emu(slide_height)
+    
     for slide_data in slides_data:
-        slide_layout = prs.slide_layouts[6]
+        slide_layout = prs.slide_layouts[6]  # Blank layout
         slide = prs.slides.add_slide(slide_layout)
+        
+        # Set slide background
         slide.background.fill.solid()
-        slide.background.fill.fore_color.rgb = parse_color('#f4f6fb') or RGBColor(255, 255, 255)
-        add_bg_shape(slide, slide_data.get('slideStyles', {}), 0, 0, slide_width, slide_height)
+        slide.background.fill.fore_color.rgb = parse_color('#ffffff') or RGBColor(255, 255, 255)
+        
+        # Add slide background styling
+        slide_styles = slide_data.get('slideStyles', {})
+        if slide_styles:
+            add_bg_shape(slide, slide_styles, 0, 0, slide_width, slide_height)
+        
         elements = slide_data.get('elements', [])
-        elements_sorted = sorted(elements, key=lambda e: (e.get('zIndex', 0), e.get('y', 0)))
-        # Build parent map for hierarchy
+        
+        # Enhanced sorting: separate background elements from content elements
+        # Background elements (divs without content) should render first
+        # Images and text should render last to stay on top
+        def get_element_priority(element):
+            element_type = element.get('type', '').lower()
+            has_text = bool(element.get('text', '').strip())
+            has_inline_group = bool(element.get('inlineGroup'))
+            has_image = element_type == 'img'
+            has_table = element_type == 'table'
+            has_list = element_type in ['ul', 'ol']
+            
+            # Priority order (lower number = rendered first/behind)
+            if element_type == 'div' and not has_text and not has_inline_group:
+                return (0, element.get('zIndex', 0), element.get('y', 0), element.get('x', 0))  # Background divs first
+            elif has_list or has_table:
+                return (1, element.get('zIndex', 0), element.get('y', 0), element.get('x', 0))  # Lists and tables
+            elif has_text or has_inline_group:
+                return (2, element.get('zIndex', 0), element.get('y', 0), element.get('x', 0))  # Text elements
+            elif has_image:
+                return (3, element.get('zIndex', 0), element.get('y', 0), element.get('x', 0))  # Images on top
+            else:
+                return (1, element.get('zIndex', 0), element.get('y', 0), element.get('x', 0))  # Other elements
+        
+        elements_sorted = sorted(elements, key=get_element_priority)
+        
+        # Build parent hierarchy for shadow inheritance
         parent_map = {}
         for el in elements_sorted:
             parent = get_parent(el, elements_sorted)
             parent_map[id(el)] = parent
+        
+        # Process each element with enhanced positioning
         for element in elements_sorted:
             element_type = element.get('type', '').lower()
+            
+            # --- Enhancement: handle .company and .footer children as separate elements ---
+            if element_type == 'div' and 'company' in element.get('className', ''):
+                # Find and render background first, then children
+                # Render background div if it has styling
+                styles = element.get('styles', {})
+                if (has_any_border(styles) or 
+                    parse_color(styles.get('backgroundColor')) or
+                    styles.get('boxShadow', 'none') != 'none'):
+                    x = element.get('x', 0)
+                    y = element.get('y', 0)
+                    width = max(1, element.get('width', 100))
+                    height = max(1, element.get('height', 100))
+                    add_bg_shape(slide, styles, x, y, width, height)
+                
+                # Then render children on top
+                for child in elements_sorted:
+                    child_x = child.get('x', 0)
+                    child_y = child.get('y', 0)
+                    elem_x = element.get('x', 0)
+                    elem_y = element.get('y', 0)
+                    
+                    # Check if child is within this element's bounds
+                    if (child_x >= elem_x and child_y >= elem_y and
+                        child_x < elem_x + element.get('width', 0) and
+                        child_y < elem_y + element.get('height', 0)):
+                        
+                        if child.get('type') == 'img':
+                            add_image_element(slide, child, slide_width, slide_height)
+                        elif child.get('type') == 'span':
+                            add_text_element(slide, child, slide_width, slide_height)
+                continue
+                
+            if element_type == 'div' and 'footer' in element.get('className', ''):
+                # Render background first
+                styles = element.get('styles', {})
+                if (has_any_border(styles) or 
+                    parse_color(styles.get('backgroundColor')) or
+                    styles.get('boxShadow', 'none') != 'none'):
+                    x = element.get('x', 0)
+                    y = element.get('y', 0)
+                    width = max(1, element.get('width', 100))
+                    height = max(1, element.get('height', 100))
+                    add_bg_shape(slide, styles, x, y, width, height)
+                
+                # Then render children on top
+                elem_y = element.get('y', 0)
+                for child in elements_sorted:
+                    if child.get('y', 0) >= elem_y:
+                        if child.get('type') == 'img':
+                            add_image_element(slide, child, slide_width, slide_height)
+                        elif child.get('type') == 'span':
+                            add_text_element(slide, child, slide_width, slide_height)
+                continue
+
             if element_type == 'canvas':
                 continue
+                
+            # Skip child elements of company/footer divs as they're handled above
             parent = parent_map.get(id(element))
+            if parent and ('company' in parent.get('className', '') or 'footer' in parent.get('className', '')):
+                continue
+            
             parent_has_shadow = bool(parent and parent.get('styles', {}).get('boxShadow', 'none') != 'none')
+            
             if element.get('inlineGroup'):
                 add_inline_group_element(slide, element, slide_width, slide_height, parent_has_shadow)
             elif element_type in ['ul', 'ol']:
@@ -970,15 +1136,29 @@ def create_pptx_from_json(json_path, output_path=None):
                 add_table_element(slide, element, slide_width, slide_height, parent_has_shadow)
             elif element_type == 'img':
                 add_image_element(slide, element, slide_width, slide_height, parent_has_shadow)
-            elif element_type in ['div', 'span', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6']:
-                if element.get('text', '').strip() and not element.get('inlineGroup'):
-                    add_text_element(slide, element, slide_width, slide_height, parent_has_shadow)
+            elif element_type == 'span':
+                add_text_element(slide, element, slide_width, slide_height, parent_has_shadow)
+            elif element_type in ['div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6']:
+                if (element.get('text', '').strip() or
+                    has_any_border(element.get('styles', {})) or
+                    parse_color(element.get('styles', {}).get('backgroundColor')) or
+                    element.get('styles', {}).get('boxShadow', 'none') != 'none'):
+                    if element.get('text', '').strip() and not element.get('inlineGroup'):
+                        add_text_element(slide, element, slide_width, slide_height, parent_has_shadow)
+                    elif not element.get('text', '').strip():
+                        x = element.get('x', 0)
+                        y = element.get('y', 0)
+                        width = max(1, element.get('width', 100))
+                        height = max(1, element.get('height', 100))
+                        add_bg_shape(slide, element.get('styles', {}), x, y, width, height)
+    
     if output_path is None:
         base_name = os.path.splitext(os.path.basename(json_path))[0]
         output_path = f"{base_name}_output.pptx"
     try:
         prs.save(output_path)
-        print(f"Presentation saved as '{output_path}'")
+        print(f"Presentation saved as '{output_path}' with {len(slides_data)} slide(s)")
+        print(f"Slide dimensions: {slide_width}x{slide_height} pixels")
     except Exception as e:
         print(f"Error saving presentation: {e}")
 

@@ -8,8 +8,14 @@ tempCodeRunnerFile.py
 node_modules/
 slides_data.json
 output_dynamic.pptx
+
 content.txt
 html_gen.py
+
+proto1.js
+proto2.py
+proto3.js
+proto4.py
 
 # C extensions
 *.so
