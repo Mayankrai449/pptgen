@@ -108,51 +108,6 @@ async function extractSlideData(htmlFilePath, outputPath) {
                 return descendants;
             }
 
-            function shouldProcessElement(element, slideContainer) {
-                if (element === slideContainer) return false;
-                if (!slideContainer.contains(element)) return false;
-
-                const tagName = element.tagName.toLowerCase();
-                if (!IMPORTANT_ELEMENTS.includes(tagName)) return false;
-
-                const styles = window.getComputedStyle(element);
-                if (styles.display === 'none' || styles.visibility === 'hidden' || styles.opacity === '0') return false;
-
-                // Always process styled inline elements and list/table elements
-                if (['strong', 'b', 'i', 'em', 'u', 'mark', 'span', 'li', 'td', 'th'].includes(tagName)) {
-                    return true;
-                }
-
-                // Skip empty elements except for those that might have visual significance
-                const text = element.textContent ? element.textContent.trim() : '';
-                if (!text && !['img', 'svg', 'video', 'audio', 'iframe'].includes(tagName)) {
-                    const hasStyling = styles.borderWidth !== '0px' || 
-                                    styles.backgroundColor !== 'rgba(0, 0, 0, 0)' || 
-                                    styles.boxShadow !== 'none';
-                    if (!hasStyling) return false;
-                }
-
-                return true;
-            }
-
-            function getInheritedStyles(element) {
-                const inheritedProps = ['color', 'fontFamily', 'fontSize', 'fontWeight', 'lineHeight', 'textAlign'];
-                const inherited = {};
-                
-                let currentElement = element.parentElement;
-                while (currentElement && currentElement.tagName !== 'BODY') {
-                    const styles = window.getComputedStyle(currentElement);
-                    inheritedProps.forEach(prop => {
-                        if (!inherited[prop] && styles[prop] !== 'initial') {
-                            inherited[prop] = styles[prop];
-                        }
-                    });
-                    currentElement = currentElement.parentElement;
-                }
-                
-                return inherited;
-            }
-
             function getResolvedBackgroundColor(element) {
                 let current = element;
                 while (current) {
@@ -164,63 +119,6 @@ async function extractSlideData(htmlFilePath, outputPath) {
                     current = current.parentElement;
                 }
                 return 'rgba(0, 0, 0, 0)';
-            }
-
-            function extractComprehensiveStyles(element) {
-                const styles = window.getComputedStyle(element);
-                const customProperties = {};
-                for (const prop of styles) {
-                    if (prop.startsWith('--')) customProperties[prop] = styles.getPropertyValue(prop);
-                }
-
-                return {
-                    fontSize: styles.fontSize,
-                    fontFamily: styles.fontFamily,
-                    fontWeight: styles.fontWeight,
-                    fontStyle: styles.fontStyle,
-                    lineHeight: styles.lineHeight,
-                    textAlign: styles.textAlign,
-                    textDecoration: styles.textDecoration,
-                    color: styles.color,
-                    backgroundColor: getResolvedBackgroundColor(element),
-                    width: styles.width,
-                    height: styles.height,
-                    padding: styles.padding,
-                    paddingTop: styles.paddingTop,
-                    paddingRight: styles.paddingRight,
-                    paddingBottom: styles.paddingBottom,
-                    paddingLeft: styles.paddingLeft,
-                    margin: styles.margin,
-                    marginTop: styles.marginTop,
-                    marginRight: styles.marginRight,
-                    marginBottom: styles.marginBottom,
-                    marginLeft: styles.marginLeft,
-                    border: styles.border,
-                    borderWidth: styles.borderWidth,
-                    borderStyle: styles.borderStyle,
-                    borderColor: styles.borderColor,
-                    borderTopWidth: styles.borderTopWidth,
-                    borderRightWidth: styles.borderRightWidth,
-                    borderBottomWidth: styles.borderBottomWidth,
-                    borderLeftWidth: styles.borderLeftWidth,
-                    borderTopStyle: styles.borderTopStyle,
-                    borderRightStyle: styles.borderRightStyle,
-                    borderBottomStyle: styles.borderBottomStyle,
-                    borderLeftStyle: styles.borderLeftStyle,
-                    borderTopColor: styles.borderTopColor || styles.borderColor,
-                    borderRightColor: styles.borderRightColor || styles.borderColor,
-                    borderBottomColor: styles.borderBottomColor || styles.borderColor,
-                    borderLeftColor: styles.borderLeftColor || styles.borderColor,
-                    borderRadius: styles.borderRadius,
-                    position: styles.position,
-                    display: styles.display,
-                    visibility: styles.visibility,
-                    zIndex: styles.zIndex,
-                    boxShadow: styles.boxShadow,
-                    listStyleType: styles.listStyleType,
-                    listStylePosition: styles.listStylePosition,
-                    listStyleImage: styles.listStyleImage
-                };
             }
 
             function getTextContent(element, processedElements) {
@@ -273,7 +171,11 @@ async function extractSlideData(htmlFilePath, outputPath) {
                     } else if (node.nodeType === Node.ELEMENT_NODE) {
                         const childTag = node.tagName.toLowerCase();
                         if (['strong', 'b', 'em', 'i', 'u', 'mark', 'span'].includes(childTag)) {
-                            const text = node.textContent;
+                            let text = node.textContent;
+                            const lines = text.split('\n');
+                            const normalizedLines = [lines[0], ...lines.slice(1).map(l => l.replace(/^[ \t]+/, ''))];
+                            text = normalizedLines.join('\n');
+                            if (text.trim() === '') return;
                             inlineElements.push({
                                 type: childTag,
                                 text: text,
@@ -467,28 +369,324 @@ async function extractSlideData(htmlFilePath, outputPath) {
                 const slideRect = slideContainer.getBoundingClientRect();
                 const styles = window.getComputedStyle(element);
                 
+                // Use the most accurate positioning method available
+                let x = rect.left - slideRect.left;
+                let y = rect.top - slideRect.top;
+                let width = rect.width;
+                let height = rect.height;
+                
+                // Account for browser zoom and device pixel ratio
+                const devicePixelRatio = window.devicePixelRatio || 1;
+                
+                // For company containers with flex layout, ensure precise positioning
+                if (element.classList.contains('company') || element.classList.contains('companies')) {
+                    const computedRect = element.getBoundingClientRect();
+                    x = computedRect.left - slideRect.left;
+                    y = computedRect.top - slideRect.top;
+                    width = computedRect.width;
+                    height = computedRect.height;
+                }
+                
                 // For inline elements, use Range API for more accurate positioning
                 if (styles.display === 'inline' || styles.display === 'inline-block') {
-                    const range = document.createRange();
-                    range.selectNodeContents(element);
-                    const rangeRect = range.getBoundingClientRect();
-                    
-                    if (rangeRect.width > 0 && rangeRect.height > 0) {
-                        return {
-                            x: Math.max(0, Math.round(rangeRect.left - slideRect.left)),
-                            y: Math.max(0, Math.round(rangeRect.top - slideRect.top)),
-                            width: Math.round(rangeRect.width),
-                            height: Math.round(rangeRect.height)
-                        };
+                    try {
+                        const range = document.createRange();
+                        range.selectNodeContents(element);
+                        const rangeRect = range.getBoundingClientRect();
+                        
+                        if (rangeRect.width > 0 && rangeRect.height > 0) {
+                            x = rangeRect.left - slideRect.left;
+                            y = rangeRect.top - slideRect.top;
+                            width = rangeRect.width;
+                            height = rangeRect.height;
+                        }
+                    } catch (e) {
+                        // Fallback to element rect if range fails
                     }
                 }
                 
+                // For flex items, ensure we get the actual positioned location
+                const parent = element.parentElement;
+                const parentStyles = parent ? window.getComputedStyle(parent) : null;
+                if (parentStyles && (parentStyles.display === 'flex' || parentStyles.display === 'inline-flex')) {
+                    // Use actual rendered position for flex items
+                    const computedRect = element.getBoundingClientRect();
+                    x = computedRect.left - slideRect.left;
+                    y = computedRect.top - slideRect.top;
+                    width = computedRect.width;
+                    height = computedRect.height;
+                }
+                
+                // Special handling for footer elements
+                if (element.closest('.footer')) {
+                    const computedRect = element.getBoundingClientRect();
+                    x = computedRect.left - slideRect.left;
+                    y = computedRect.top - slideRect.top;
+                    width = computedRect.width;
+                    height = computedRect.height;
+                }
+                
+                // Account for transforms and scaling
+                const transform = styles.transform;
+                if (transform && transform !== 'none') {
+                    try {
+                        const matrix = new DOMMatrix(transform);
+                        if (matrix.a !== 1 || matrix.d !== 1) {
+                            width *= Math.abs(matrix.a);
+                            height *= Math.abs(matrix.d);
+                        }
+                        // Account for translation
+                        x += matrix.e;
+                        y += matrix.f;
+                    } catch (e) {
+                        // Fallback if DOMMatrix fails
+                    }
+                }
+                
+                // Ensure sub-pixel precision and handle edge cases
                 return {
-                    x: Math.max(0, Math.round(rect.left - slideRect.left)),
-                    y: Math.max(0, Math.round(rect.top - slideRect.top)),
-                    width: Math.round(rect.width),
-                    height: Math.round(rect.height)
+                    x: Math.max(0, Math.round(x * 100) / 100),
+                    y: Math.max(0, Math.round(y * 100) / 100),
+                    width: Math.max(0.1, Math.round(width * 100) / 100),
+                    height: Math.max(0.1, Math.round(height * 100) / 100)
                 };
+            }
+
+            function extractComprehensiveStyles(element) {
+                const styles = window.getComputedStyle(element);
+                const customProperties = {};
+                for (const prop of styles) {
+                    if (prop.startsWith('--')) customProperties[prop] = styles.getPropertyValue(prop);
+                }
+
+                // Get all border properties with high precision
+                const borderProps = {};
+                ['Top', 'Right', 'Bottom', 'Left'].forEach(side => {
+                    borderProps[`border${side}Width`] = styles[`border${side}Width`];
+                    borderProps[`border${side}Style`] = styles[`border${side}Style`];
+                    borderProps[`border${side}Color`] = styles[`border${side}Color`];
+                });
+
+                return {
+                    fontSize: styles.fontSize,
+                    fontFamily: styles.fontFamily,
+                    fontWeight: styles.fontWeight,
+                    fontStyle: styles.fontStyle,
+                    lineHeight: styles.lineHeight,
+                    textAlign: styles.textAlign,
+                    textDecoration: styles.textDecoration,
+                    color: styles.color,
+                    backgroundColor: getResolvedBackgroundColor(element),
+                    width: styles.width,
+                    height: styles.height,
+                    padding: styles.padding,
+                    paddingTop: styles.paddingTop,
+                    paddingRight: styles.paddingRight,
+                    paddingBottom: styles.paddingBottom,
+                    paddingLeft: styles.paddingLeft,
+                    margin: styles.margin,
+                    marginTop: styles.marginTop,
+                    marginRight: styles.marginRight,
+                    marginBottom: styles.marginBottom,
+                    marginLeft: styles.marginLeft,
+                    border: styles.border,
+                    borderWidth: styles.borderWidth,
+                    borderStyle: styles.borderStyle,
+                    borderColor: styles.borderColor,
+                    ...borderProps,
+                    borderRadius: styles.borderRadius,
+                    position: styles.position,
+                    display: styles.display,
+                    visibility: styles.visibility,
+                    zIndex: styles.zIndex,
+                    boxShadow: styles.boxShadow,
+                    listStyleType: styles.listStyleType,
+                    listStylePosition: styles.listStylePosition,
+                    listStyleImage: styles.listStyleImage,
+                    overflow: styles.overflow,
+                    overflowX: styles.overflowX,
+                    overflowY: styles.overflowY,
+                    flex: styles.flex,
+                    flexDirection: styles.flexDirection,
+                    justifyContent: styles.justifyContent,
+                    alignItems: styles.alignItems,
+                    gap: styles.gap
+                };
+            }
+
+            // --- Enhancement: Extract .company and .footer children as separate elements for precise alignment ---
+            function extractCompanyElements(companyDiv, slideContainer) {
+                const elements = [];
+                const rect = companyDiv.getBoundingClientRect();
+                const slideRect = slideContainer.getBoundingClientRect();
+                const img = companyDiv.querySelector('img');
+                const span = companyDiv.querySelector('span');
+                if (img) {
+                    const imgRect = img.getBoundingClientRect();
+                    elements.push({
+                        type: 'img',
+                        x: Math.round(imgRect.left - slideRect.left),
+                        y: Math.round(imgRect.top - slideRect.top),
+                        width: Math.round(imgRect.width),
+                        height: Math.round(imgRect.height),
+                        styles: extractComprehensiveStyles(img),
+                        className: img.className || '',
+                        id: img.id || '',
+                        zIndex: 0,
+                        mediaInfo: {
+                            src: img.src || '',
+                            alt: img.alt || '',
+                            naturalWidth: img.naturalWidth || 0,
+                            naturalHeight: img.naturalHeight || 0
+                        }
+                    });
+                }
+                if (span) {
+                    const spanRect = span.getBoundingClientRect();
+                    elements.push({
+                        type: 'span',
+                        x: Math.round(spanRect.left - slideRect.left),
+                        y: Math.round(spanRect.top - slideRect.top),
+                        width: Math.round(spanRect.width),
+                        height: Math.round(spanRect.height),
+                        styles: extractComprehensiveStyles(span),
+                        className: span.className || '',
+                        id: span.id || '',
+                        zIndex: 0,
+                        text: span.textContent.trim()
+                    });
+                }
+                return elements;
+            }
+
+            function extractFooterElements(footerDiv, slideContainer) {
+                const elements = [];
+                const slideRect = slideContainer.getBoundingClientRect();
+                // Extract all direct children (e.g., span and img)
+                for (const child of footerDiv.children) {
+                    if (child.tagName.toLowerCase() === 'img') {
+                        const imgRect = child.getBoundingClientRect();
+                        elements.push({
+                            type: 'img',
+                            x: Math.round(imgRect.left - slideRect.left),
+                            y: Math.round(imgRect.top - slideRect.top),
+                            width: Math.round(imgRect.width),
+                            height: Math.round(imgRect.height),
+                            styles: extractComprehensiveStyles(child),
+                            className: child.className || '',
+                            id: child.id || '',
+                            zIndex: 0,
+                            mediaInfo: {
+                                src: child.src || '',
+                                alt: child.alt || '',
+                                naturalWidth: child.naturalWidth || 0,
+                                naturalHeight: child.naturalHeight || 0
+                            }
+                        });
+                    } else if (child.tagName.toLowerCase() === 'span') {
+                        const spanRect = child.getBoundingClientRect();
+                        elements.push({
+                            type: 'span',
+                            x: Math.round(spanRect.left - slideRect.left),
+                            y: Math.round(spanRect.top - slideRect.top),
+                            width: Math.round(spanRect.width),
+                            height: Math.round(spanRect.height),
+                            styles: extractComprehensiveStyles(child),
+                            className: child.className || '',
+                            id: child.id || '',
+                            zIndex: 0,
+                            text: child.textContent.trim()
+                        });
+                    }
+                }
+                return elements;
+            }
+
+            function shouldProcessElement(element, slideContainer) {
+                if (element === slideContainer) return false;
+                if (!slideContainer.contains(element)) return false;
+
+                const tagName = element.tagName.toLowerCase();
+                if (!IMPORTANT_ELEMENTS.includes(tagName)) return false;
+
+                const styles = window.getComputedStyle(element);
+                if (styles.display === 'none' || styles.visibility === 'hidden' || styles.opacity === '0') return false;
+
+                // Always process elements with borders, backgrounds, or visual significance
+                const hasBorder = ['borderTopWidth', 'borderRightWidth', 'borderBottomWidth', 'borderLeftWidth']
+                    .some(prop => parseFloat(styles[prop]) > 0);
+
+                const hasBackground = styles.backgroundColor !== 'rgba(0, 0, 0, 0)' && styles.backgroundColor !== 'transparent';
+                const hasShadow = styles.boxShadow !== 'none';
+
+                if (hasBorder || hasBackground || hasShadow) {
+                    return true;
+                }
+
+                // Always process images and spans (for company logos and text)
+                if (['img', 'span'].includes(tagName)) {
+                    return true;
+                }
+
+                // Always process company containers and footer elements
+                if (element.classList.contains('company') || element.classList.contains('footer') || element.closest('.footer')) {
+                    return true;
+                }
+
+                // Always process styled inline elements and list/table elements
+                if (['strong', 'b', 'i', 'em', 'u', 'mark', 'li', 'td', 'th'].includes(tagName)) {
+                    return true;
+                }
+
+                // Process divs that are part of flex layouts (like .company containers)
+                if (tagName === 'div') {
+                    const parent = element.parentElement;
+                    const parentStyles = parent ? window.getComputedStyle(parent) : null;
+                    if (parentStyles && (parentStyles.display === 'flex' || parentStyles.display === 'inline-flex')) {
+                        return true;
+                    }
+
+                    // Process divs with flex display themselves
+                    if (styles.display === 'flex' || styles.display === 'inline-flex') {
+                        return true;
+                    }
+
+                    // Process company containers specifically
+                    if (element.classList.contains('companies') || element.classList.contains('company')) {
+                        return true;
+                    }
+                }
+
+                // Skip empty elements except for those that might have visual significance
+                const text = element.textContent ? element.textContent.trim() : '';
+                if (!text && !['img', 'svg', 'video', 'audio', 'iframe', 'hr', 'br'].includes(tagName)) {
+                    const rect = element.getBoundingClientRect();
+                    if (rect.width === 0 && rect.height === 0) {
+                        return false;
+                    }
+                }
+
+                return true;
+            }
+
+            // --- Enhancement: Prevent redundant extraction of inline/highlighted text elements ---
+            function isRedundantInlineElement(element) {
+                // Only applies to inline elements (span, strong, em, etc.)
+                const tag = element.tagName.toLowerCase();
+                if (!['span', 'strong', 'b', 'em', 'i', 'u', 'mark'].includes(tag)) return false;
+                // If parent is a text container and will be processed for text, skip this
+                const parent = element.parentElement;
+                if (!parent) return false;
+                const parentTag = parent.tagName.toLowerCase();
+                // Only skip if parent is a text container and not a .company or .footer (which are handled separately)
+                if (
+                    ['div', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'].includes(parentTag) &&
+                    !parent.classList.contains('company') &&
+                    !parent.classList.contains('footer')
+                ) {
+                    return true;
+                }
+                return false;
             }
 
             for (let slideIndex = 0; slideIndex < slideElements.length; slideIndex++) {
@@ -498,18 +696,22 @@ async function extractSlideData(htmlFilePath, outputPath) {
                 const slide = {
                     slideId: slideIndex + 1,
                     elements: [],
-                    slideWidth: Math.round(slideRect.width),
-                    slideHeight: Math.round(slideRect.height),
+                    slideWidth: parseFloat(slideRect.width.toFixed(2)),
+                    slideHeight: parseFloat(slideRect.height.toFixed(2)),
                     slidePosition: {
-                        x: Math.round(slideRect.left),
-                        y: Math.round(slideRect.top)
+                        x: parseFloat(slideRect.left.toFixed(2)),
+                        y: parseFloat(slideRect.top.toFixed(2))
                     },
                     slideStyles: extractComprehensiveStyles(slideElement)
                 };
 
                 const processedElements = new Set();
                 const allElements = Array.from(slideElement.querySelectorAll('*'));
-                const elementsToProcess = allElements.filter(element => shouldProcessElement(element, slideElement));
+                const elementsToProcess = allElements.filter(element => {
+                    // --- Skip redundant inline elements ---
+                    if (isRedundantInlineElement(element)) return false;
+                    return shouldProcessElement(element, slideElement);
+                });
 
                 // Sort elements by position (top to bottom, left to right)
                 elementsToProcess.sort((a, b) => {
@@ -519,24 +721,24 @@ async function extractSlideData(htmlFilePath, outputPath) {
                     return Math.abs(topDiff) < 5 ? rectA.left - rectB.left : topDiff;
                 });
 
-                // Create a comprehensive set to track all elements that should not be processed individually
+                // --- Enhancement: Handle .company and .footer children as separate elements ---
                 const skipElements = new Set();
-                
-                // First pass: identify all elements that will be part of inline groups or should be skipped
                 elementsToProcess.forEach(element => {
-                    const inlineGroup = getInlineGroup(element, slideElement);
-                    if (inlineGroup) {
-                        // Mark all its inline children as handled
-                        getAllDescendants(element).forEach(child => {
-                            const childTag = child.tagName.toLowerCase();
-                            if (['strong', 'b', 'em', 'i', 'u', 'mark', 'span', 'br'].includes(childTag)) {
-                                skipElements.add(child);
-                            }
-                        });
+                    if (element.classList.contains('company')) {
+                        extractCompanyElements(element, slideElement).forEach(e => slide.elements.push(e));
+                        skipElements.add(element);
+                        // Also skip its children
+                        for (const child of element.children) skipElements.add(child);
+                    }
+                    if (element.classList.contains('footer')) {
+                        extractFooterElements(element, slideElement).forEach(e => slide.elements.push(e));
+                        skipElements.add(element);
+                        for (const child of element.children) skipElements.add(child);
                     }
                 });
 
                 elementsToProcess.forEach(element => {
+                    if (skipElements.has(element)) return;
                     const elementId = getElementId(element);
                     if (processedElements.has(elementId)) return;
                     
@@ -620,9 +822,9 @@ async function extractSlideData(htmlFilePath, outputPath) {
     } finally {
         await browser.close();
     }
-}
+};
 
-const htmlFilePath = 'presentation.html';
+const htmlFilePath = 'input.html';
 const outputPath = 'slides_data.json';
 
 extractSlideData(htmlFilePath, outputPath).catch(err => {
